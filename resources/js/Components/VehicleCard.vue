@@ -1,17 +1,31 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { Link } from '@inertiajs/vue3';
 
 const props = defineProps({
     vehicle: {
         type: Object,
         required: true,
     },
+    period: {
+        type: String,
+        default: 'daily',
+    },
 });
 
 const emit = defineEmits(['open-detail', 'select-booking']);
 
 // Interactive pricing tab: 'daily' | 'weekly' | 'monthly'
-const priceMode = ref('daily');
+const priceMode = ref(props.period || 'daily');
+
+watch(
+    () => props.period,
+    (newVal) => {
+        if (newVal) {
+            priceMode.value = newVal;
+        }
+    }
+);
 
 const currentPrice = computed(() => {
     if (!props.vehicle.prices) return 0;
@@ -59,47 +73,59 @@ const getWhatsAppUrl = () => {
     >
         <!-- Vehicle Image & Badges -->
         <div class="relative h-48 sm:h-52 w-full overflow-hidden bg-surface-container-low">
-            <img
-                :src="vehicle.image"
-                :alt="vehicle.name"
-                class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                loading="lazy"
-            />
+            <Link :href="`/armada/${vehicle.slug || vehicle.id}`" class="block h-full w-full">
+                <img
+                    :src="vehicle.image"
+                    :alt="vehicle.name"
+                    class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                />
+            </Link>
 
             <!-- Left Category/Feature Badge -->
             <span
                 v-if="vehicle.badge"
-                class="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 font-label-badge text-label-badge text-on-primary shadow-sm"
+                class="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 font-label-badge text-label-badge text-on-primary shadow-sm pointer-events-none"
             >
                 {{ vehicle.badge }}
             </span>
 
             <!-- Right Availability Status Badge (PRD Requirement) -->
             <div
-                class="absolute right-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md shadow-xs text-xs font-semibold"
+                class="absolute right-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md shadow-xs text-xs font-semibold pointer-events-none"
                 :class="[
-                    vehicle.is_available
+                    vehicle.status === 'available' || (vehicle.status === undefined && vehicle.is_available)
                         ? 'bg-surface-container-lowest/95 text-tertiary border border-tertiary/20'
+                        : vehicle.status === 'maintenance'
+                        ? 'bg-surface-container-lowest/95 text-rose-700 border border-rose-200'
                         : 'bg-surface-container-highest/95 text-on-surface-variant border border-outline-variant'
                 ]"
             >
                 <span
                     class="h-2 w-2 rounded-full"
                     :class="[
-                        vehicle.is_available
+                        vehicle.status === 'available' || (vehicle.status === undefined && vehicle.is_available)
                             ? 'bg-tertiary animate-pulse'
+                            : vehicle.status === 'maintenance'
+                            ? 'bg-rose-500'
                             : 'bg-amber-500'
                     ]"
                 ></span>
                 <span class="font-spec-data text-[11px]">
-                    {{ vehicle.status_label || (vehicle.is_available ? 'Tersedia Hari Ini' : 'Sedang Disewa') }}
+                    {{ vehicle.status_label || (vehicle.is_available ? 'Tersedia' : 'Sedang Disewa') }}
                 </span>
             </div>
 
-            <!-- Driver Option Overlay Pill -->
-            <div class="absolute bottom-3 left-3">
+            <!-- Driver Option & Transmission Overlay Pill -->
+            <div class="absolute bottom-3 left-3 flex items-center gap-1.5 pointer-events-none">
                 <span class="rounded-lg bg-surface-container-lowest/90 px-2.5 py-1 font-spec-data text-[11px] font-semibold text-on-surface backdrop-blur-md shadow-xs">
                     {{ vehicle.driver_option || 'Lepas Kunci' }}
+                </span>
+                <span
+                    v-if="vehicle.transmission_label"
+                    class="rounded-lg bg-surface-container-lowest/90 px-2 py-1 font-spec-data text-[10px] font-bold text-primary backdrop-blur-md shadow-xs uppercase"
+                >
+                    {{ vehicle.transmission_label }}
                 </span>
             </div>
         </div>
@@ -117,7 +143,9 @@ const getWhatsAppUrl = () => {
             </div>
 
             <h3 class="mt-1 font-headline-sm text-headline-sm font-bold text-on-surface group-hover:text-primary transition">
-                {{ vehicle.name }}
+                <Link :href="`/armada/${vehicle.slug || vehicle.id}`" class="hover:underline">
+                    {{ vehicle.name }}
+                </Link>
             </h3>
 
             <!-- Telemetry Spec Matrix Grid -->
@@ -206,29 +234,26 @@ const getWhatsAppUrl = () => {
 
             <!-- Action Buttons Grid -->
             <div class="mt-4 grid grid-cols-2 gap-2">
-                <button
-                    type="button"
-                    @click="emit('open-detail', vehicle, currentPrice, priceMode)"
-                    class="rounded-lg bg-surface-container-high py-2.5 text-center font-title-md text-body-sm font-semibold text-primary transition hover:bg-surface-variant active:scale-95"
+                <Link
+                    :href="`/armada/${vehicle.slug || vehicle.id}`"
+                    class="rounded-lg bg-surface-container-high py-2.5 text-center font-title-md text-body-sm font-semibold text-primary transition hover:bg-surface-variant active:scale-95 flex items-center justify-center"
                 >
                     Detail Unit
-                </button>
-                <a
-                    :href="getWhatsAppUrl()"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                </Link>
+                <Link
+                    :href="`/armada/${vehicle.slug || vehicle.id}`"
                     class="flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-center font-title-md text-body-sm text-on-primary shadow-xs transition active:scale-95"
                     :class="[
-                        vehicle.is_available
+                        vehicle.status === 'available' || (vehicle.status === undefined && vehicle.is_available)
                             ? 'bg-primary hover:bg-primary-container'
                             : 'bg-secondary hover:bg-on-surface-variant'
                     ]"
                 >
                     <span class="material-symbols-outlined text-[16px]">
-                        {{ vehicle.is_available ? 'shopping_bag' : 'event' }}
+                        {{ (vehicle.status === 'available' || (vehicle.status === undefined && vehicle.is_available)) ? 'key' : 'event' }}
                     </span>
-                    <span>{{ vehicle.is_available ? 'Sewa Sekarang' : 'Cek Jadwal' }}</span>
-                </a>
+                    <span>{{ (vehicle.status === 'available' || (vehicle.status === undefined && vehicle.is_available)) ? 'Pesan Sewa' : 'Cek Jadwal' }}</span>
+                </Link>
             </div>
         </div>
     </div>
