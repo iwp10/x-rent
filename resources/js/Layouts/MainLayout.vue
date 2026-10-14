@@ -33,10 +33,10 @@ const navLinks = [
     { label: 'Katalog Semua', href: '/katalog', isRoute: true },
     { label: 'Armada Mobil', href: '/armada-mobil', isRoute: true },
     { label: 'Armada Motor', href: '/armada-motor', isRoute: true },
+    { label: 'Cek Booking', href: '/cek-pesanan', isRoute: true },
     { label: 'Syarat & Ketentuan', href: '/#syarat', isRoute: false },
     { label: 'Lokasi Garasi', href: '/#lokasi', isRoute: false },
     { label: 'FAQ', href: '/#faq', isRoute: false },
-    { label: 'Cek Booking', href: '/#cek-booking', isRoute: false },
 ];
 
 const isActive = (href) => {
@@ -335,6 +335,7 @@ const waUrl = `https://wa.me/${waNumber}?text=${waMessage}`;
                             <li><Link class="hover:text-primary transition-colors" href="/katalog">Katalog Lengkap</Link></li>
                             <li><Link class="hover:text-primary transition-colors" href="/armada-mobil">Armada Mobil</Link></li>
                             <li><Link class="hover:text-primary transition-colors" href="/armada-motor">Armada Motor</Link></li>
+                            <li><Link class="hover:text-primary transition-colors" href="/cek-pesanan">Cek Status Pesanan</Link></li>
                             <li><a class="hover:text-primary transition-colors" href="/#syarat">Ketentuan Rental</a></li>
                             <li><a class="hover:text-primary transition-colors" href="/#lokasi">Lokasi Garasi</a></li>
                             <li><a class="hover:text-primary transition-colors" href="/#faq">Pusat Bantuan / FAQ</a></li>

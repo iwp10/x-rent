@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import VehicleCard from '@/Components/VehicleCard.vue';
 
@@ -131,13 +131,31 @@ const getWhatsAppBookingUrl = () => {
     return `https://wa.me/6281288889999?text=${encodeURIComponent(message)}`;
 };
 
+const isSubmitting = ref(false);
+
 const handleOnlineBookingSubmit = (e) => {
     e.preventDefault();
     if (!formFullName.value.trim() || !formWhatsapp.value.trim()) {
         alert('Mohon lengkapi Nama Lengkap dan Nomor WhatsApp Anda.');
         return;
     }
-    showBookingSuccessModal.value = true;
+
+    isSubmitting.value = true;
+    router.post('/booking', {
+        customer_name: formFullName.value,
+        customer_phone: formWhatsapp.value,
+        customer_category: formCategory.value,
+        start_date: `${formStartDate.value} ${formStartTime.value}`,
+        duration_type: durationType.value,
+        duration_count: durationCount.value,
+        pickup_option: pickupMethod.value,
+        notes: formNotes.value,
+        vehicle_name: props.vehicle.name,
+    }, {
+        onFinish: () => {
+            isSubmitting.value = false;
+        },
+    });
 };
 </script>
 
@@ -659,9 +677,11 @@ const handleOnlineBookingSubmit = (e) => {
                                         <!-- Online Form Submit Button -->
                                         <button
                                             type="submit"
-                                            class="w-full py-2.5 px-4 rounded-xl bg-surface-container-high text-primary font-title-md text-xs font-semibold text-center hover:bg-surface-variant transition active:scale-[0.99]"
+                                            :disabled="isSubmitting"
+                                            class="w-full py-2.5 px-4 rounded-xl bg-surface-container-high text-primary font-title-md text-xs font-semibold text-center hover:bg-surface-variant transition active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                         >
-                                            Kirim Formulir Reservasi Online
+                                            <span v-if="isSubmitting" class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                                            <span>{{ isSubmitting ? 'Memproses Pesanan...' : 'Kirim Formulir Reservasi Online' }}</span>
                                         </button>
                                     </div>
 
