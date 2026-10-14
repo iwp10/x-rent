@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Booking;
+use App\Models\Vehicle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -11,61 +13,51 @@ use Inertia\Response;
 class BookingController extends Controller
 {
     /**
-     * Display the Track Booking page (Task 2.5 roadmap.md).
+     * Display the Track Booking page with live data from MySQL (Task 3.4 roadmap.md).
      */
     public function track(Request $request): Response
     {
         $code = strtoupper(trim((string) $request->query('code', '')));
-        $allBookings = self::getDummyBookings();
 
-        // If code query param is provided, find matching booking
+        // Fetch all bookings from MySQL database
+        $dbBookings = Booking::with('vehicle.category')->get();
+
+        // Find active booking by code, or fallback to first/latest
         $matchedBooking = null;
         if (!empty($code)) {
-            foreach ($allBookings as $booking) {
-                if (strtoupper($booking['code']) === $code) {
-                    $matchedBooking = $booking;
-                    break;
-                }
-            }
+            $matchedBooking = $dbBookings->first(fn ($b) => strtoupper($b->booking_code) === $code);
         }
 
-        // Default to first booking (pending) if no code provided or for quick sample viewing
-        $activeBooking = $matchedBooking ?: $allBookings[0];
+        $rawActive = $matchedBooking ?: $dbBookings->first();
+
+        // Transform bookings for frontend
+        $allBookingsFormatted = $dbBookings->map(fn ($b) => self::formatBookingForFrontend($b))->values()->all();
+        $activeFormatted = $rawActive ? self::formatBookingForFrontend($rawActive) : null;
+
+        // Dynamic sample pills from database
+        $sampleCodes = $dbBookings->map(function ($b) {
+            $label = match ($b->status) {
+                'pending' => 'Pending (Menunggu)',
+                'confirmed' => 'Confirmed (Siap Diambil)',
+                'ongoing' => 'Ongoing (Sedang Disewa)',
+                'completed' => 'Completed (Selesai)',
+                default => ucfirst($b->status),
+            };
+
+            return [
+                'code' => $b->booking_code,
+                'status' => $b->status,
+                'label' => "{$b->booking_code} ({$label})",
+                'badge' => $b->status_label,
+                'vehicle' => $b->vehicle ? $b->vehicle->name : 'Unit Kendaraan',
+            ];
+        })->values()->all();
 
         return Inertia::render('TrackBooking', [
             'initialCode' => $code,
-            'activeBooking' => $activeBooking,
-            'allBookings' => $allBookings,
-            'sampleCodes' => [
-                [
-                    'code' => 'XR-20261014-AB12',
-                    'status' => 'pending',
-                    'label' => 'Pending (Menunggu)',
-                    'badge' => 'Menunggu Konfirmasi',
-                    'vehicle' => 'Honda Beat CBS',
-                ],
-                [
-                    'code' => 'XR-20261014-CD34',
-                    'status' => 'confirmed',
-                    'label' => 'Confirmed (Siap Diambil)',
-                    'badge' => 'Pesanan Diterima',
-                    'vehicle' => 'Honda Brio RS',
-                ],
-                [
-                    'code' => 'XR-20261014-EF56',
-                    'status' => 'ongoing',
-                    'label' => 'Ongoing (Sedang Disewa)',
-                    'badge' => 'Sedang Berjalan',
-                    'vehicle' => 'Toyota Avanza 1.5 G',
-                ],
-                [
-                    'code' => 'XR-20261014-GH78',
-                    'status' => 'completed',
-                    'label' => 'Completed (Selesai)',
-                    'badge' => 'Selesai & Refund',
-                    'vehicle' => 'Yamaha NMAX 155',
-                ],
-            ],
+            'activeBooking' => $activeFormatted,
+            'allBookings' => $allBookingsFormatted,
+            'sampleCodes' => $sampleCodes,
             'faqs' => [
                 [
                     'q' => 'Apakah bisa minta diantarkan ke bandara / stasiun / hotel?',
@@ -88,370 +80,234 @@ class BookingController extends Controller
     }
 
     /**
-     * Simulate booking form submission from VehicleDetail.vue (Task 2.5 roadmap.md).
+     * Store online booking form into MySQL database & prepare WhatsApp Admin confirmation (Task 3.3 roadmap.md).
      */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'customer_name' => 'nullable|string|max:100',
-            'customer_phone' => 'nullable|string|max:30',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'vehicle_slug' => 'nullable|string',
+            'vehicle_name' => 'nullable|string',
+            'customer_name' => 'required|string|max:100',
+            'customer_phone' => 'required|string|max:30',
             'customer_category' => 'nullable|string|max:50',
-            'start_date' => 'nullable|string|max:50',
-            'duration_type' => 'nullable|string|in:daily,weekly,monthly',
-            'duration_count' => 'nullable|numeric|min:1',
-            'pickup_option' => 'nullable|string|in:garage,delivery',
+            'start_date' => 'required|string|max:50',
+            'duration_type' => 'required|string|in:daily,weekly,monthly',
+            'duration_count' => 'required|integer|min:1',
+            'pickup_option' => 'required|string|in:garage,delivery',
             'notes' => 'nullable|string|max:500',
-            'vehicle_name' => 'nullable|string|max:100',
         ]);
 
-        // Generate realistic transaction booking code
+        // Find the vehicle in database
+        $vehicle = null;
+        if (!empty($validated['vehicle_id'])) {
+            $vehicle = Vehicle::find($validated['vehicle_id']);
+        } elseif (!empty($validated['vehicle_slug'])) {
+            $vehicle = Vehicle::where('slug', $validated['vehicle_slug'])->first();
+        } elseif (!empty($validated['vehicle_name'])) {
+            $vehicle = Vehicle::where('name', 'like', '%' . $validated['vehicle_name'] . '%')->first();
+        }
+
+        if (!$vehicle) {
+            $vehicle = Vehicle::first();
+        }
+
+        // Calculate accurate price on backend
+        $unitRate = match ($validated['duration_type']) {
+            'weekly' => (int) $vehicle->price_weekly,
+            'monthly' => (int) $vehicle->price_monthly,
+            default => (int) $vehicle->price_daily,
+        };
+
+        $durationCount = (int) $validated['duration_count'];
+        $subtotal = $unitRate * $durationCount;
+        $deliveryFee = $validated['pickup_option'] === 'delivery' ? 25000 : 0;
+        $deposit = $vehicle->type === 'mobil' ? 200000 : 50000;
+        $totalPrice = $subtotal + $deliveryFee + $deposit;
+
+        // Generate unique booking code XR-YYYYMMDD-XXXX
         $bookingCode = 'XR-' . date('Ymd') . '-' . strtoupper(Str::random(4));
 
-        return redirect()->route('booking.track', ['code' => 'XR-20261014-AB12'])
-            ->with('success', "Pemesanan berhasil diproses! Kode Booking Anda: XR-20261014-AB12. Simpan kode ini untuk memantau status pesanan.");
+        // Format start date
+        $startDateTime = date('Y-m-d H:i:s', strtotime($validated['start_date']) ?: time());
+
+        // Save into MySQL database
+        $booking = Booking::create([
+            'booking_code' => $bookingCode,
+            'vehicle_id' => $vehicle->id,
+            'customer_name' => $validated['customer_name'],
+            'customer_phone' => $validated['customer_phone'],
+            'customer_type' => $validated['customer_category'] ?? 'umum',
+            'start_date' => $startDateTime,
+            'duration_type' => $validated['duration_type'],
+            'duration_count' => $durationCount,
+            'delivery_option' => $validated['pickup_option'],
+            'delivery_fee' => $deliveryFee,
+            'deposit_amount' => $deposit,
+            'total_price' => $totalPrice,
+            'status' => 'pending',
+            'notes' => $validated['notes'] ?? null,
+            'pickup_address' => $validated['pickup_option'] === 'delivery'
+                ? ($validated['notes'] ?: 'Alamat antar diinformasikan ke WhatsApp')
+                : 'Garasi Pusat X-RENT, Cilandak',
+            'payment_status' => 'Belum Dibayar',
+        ]);
+
+        // Generate WhatsApp confirmation message link
+        $waNumber = '6281288889999';
+        $formattedDate = date('d M Y, H:i', strtotime($startDateTime));
+        $durationLabel = "{$durationCount} " . ucfirst($validated['duration_type']);
+        $pickupLabel = $validated['pickup_option'] === 'delivery'
+            ? 'Layanan Antar Drop-Off (+Rp 25.000)'
+            : 'Ambil di Garasi (Rp 0)';
+
+        $waMsg = "*KONFIRMASI BOOKING X-RENT: {$bookingCode}*\n"
+            . "----------------------------------------\n"
+            . "*Unit:* {$vehicle->name}\n"
+            . "*Penyewa:* {$booking->customer_name} ({$booking->customer_phone})\n"
+            . "*Kategori:* {$booking->customer_type}\n"
+            . "*Mulai Sewa:* {$formattedDate} WIB\n"
+            . "*Durasi:* {$durationLabel}\n"
+            . "*Opsi Pengambilan:* {$pickupLabel}\n"
+            . "*Total Biaya Estimasi:* Rp " . number_format($totalPrice, 0, ',', '.') . "\n";
+
+        if ($booking->notes) {
+            $waMsg .= "*Catatan / Alamat:* {$booking->notes}\n";
+        }
+
+        $waMsg .= "----------------------------------------\n"
+            . "Mohon proses verifikasi identitas dan konfirmasi ketersediaan unit saya. Terima kasih!";
+
+        $whatsappUrl = "https://wa.me/{$waNumber}?text=" . urlencode($waMsg);
+
+        return redirect()->route('booking.track', ['code' => $bookingCode])
+            ->with('success', "Pemesanan berhasil diproses! Kode Booking Anda: {$bookingCode}. Silakan lanjutkan konfirmasi ke WhatsApp Admin.")
+            ->with('whatsapp_url', $whatsappUrl);
     }
 
     /**
-     * Master dummy bookings with 4 comprehensive statuses for testing.
+     * Helper to format a Booking Eloquent model into the frontend view structure.
      */
-    public static function getDummyBookings(): array
+    private static function formatBookingForFrontend(Booking $booking): array
     {
+        $vehicle = $booking->vehicle;
+
+        $startDateStr = $booking->start_date ? $booking->start_date->format('d M Y • H:i') . ' WIB' : '15 Okt 2026 • 09:00 WIB';
+
+        // Calculate end date
+        $durationDays = match ($booking->duration_type) {
+            'weekly' => $booking->duration_count * 7,
+            'monthly' => $booking->duration_count * 30,
+            default => $booking->duration_count,
+        };
+        $endDate = $booking->start_date ? $booking->start_date->copy()->addDays($durationDays) : null;
+        $endDateStr = $endDate ? $endDate->format('d M Y • H:i') . ' WIB' : '18 Okt 2026 • 09:00 WIB';
+
+        $durationLabel = "{$booking->duration_count} " . match ($booking->duration_type) {
+            'weekly' => 'Minggu (Mingguan)',
+            'monthly' => 'Bulan (Bulanan)',
+            default => 'Hari (Harian)',
+        };
+
+        $statusDesc = match ($booking->status) {
+            'pending' => 'Admin kami sedang memverifikasi data identitas (KTP & SIM) dan ketersediaan unit di sistem garasi.',
+            'confirmed' => 'Unit telah disiapkan, dicek teknis, dan siap untuk serah terima di garasi atau diantar ke lokasi Anda.',
+            'ongoing' => 'Unit kendaraan saat ini sedang aktif digunakan oleh penyewa. Nikmati perjalanan aman bersama X-RENT!',
+            'completed' => 'Unit telah diterima kembali oleh staf garasi dalam kondisi baik. Deposit jaminan telah direfund 100%.',
+            'cancelled' => 'Pemesanan ini telah dibatalkan.',
+            default => 'Status pemesanan sedang diproses.',
+        };
+
+        // Timeline steps
+        $stepIndex = $booking->step_index;
+        $timeline = [
+            [
+                'step' => 1,
+                'name' => 'Pesanan Dibuat',
+                'desc' => 'Formulir online berhasil dikirim ke server X-RENT.',
+                'time' => $booking->created_at ? $booking->created_at->format('d M Y, H:i') . ' WIB' : 'Baru saja',
+                'status' => $stepIndex >= 1 ? ($stepIndex > 1 ? 'completed' : 'current') : 'upcoming',
+                'icon' => 'receipt_long',
+            ],
+            [
+                'step' => 2,
+                'name' => 'Verifikasi Identitas & Unit',
+                'desc' => 'Admin memeriksa keabsahan KTP & SIM penyewa serta kesiapan unit.',
+                'time' => $stepIndex > 2 ? 'Selesai' : ($stepIndex === 2 ? 'Sedang berlangsung...' : 'Menunggu verifikasi'),
+                'status' => $stepIndex >= 2 ? ($stepIndex > 2 ? 'completed' : 'current') : 'upcoming',
+                'icon' => 'verified_user',
+            ],
+            [
+                'step' => 3,
+                'name' => 'Pengambilan / Serah Terima Unit',
+                'desc' => $booking->delivery_option === 'delivery'
+                    ? 'Unit diantar drop-off ke lokasi tujuan penyewa.'
+                    : 'Penyewa datang ke Garasi Pusat untuk serah terima unit & kunci.',
+                'time' => "Est. {$startDateStr}",
+                'status' => $stepIndex >= 3 ? ($stepIndex > 3 ? 'completed' : 'current') : 'upcoming',
+                'icon' => $booking->delivery_option === 'delivery' ? 'local_shipping' : 'key',
+            ],
+            [
+                'step' => 4,
+                'name' => 'Selesai & Pengembalian Deposit',
+                'desc' => 'Unit dikembalikan utuh, deposit jaminan direfund seketika 100%.',
+                'time' => "Est. {$endDateStr}",
+                'status' => $stepIndex === 4 ? 'completed' : 'upcoming',
+                'icon' => 'task_alt',
+            ],
+        ];
+
+        $subtotal = $booking->total_price - $booking->delivery_fee - $booking->deposit_amount;
+
         return [
-            // 1. PENDING: Menunggu Konfirmasi
-            [
-                'id' => 1,
-                'code' => 'XR-20261014-AB12',
-                'status' => 'pending',
-                'status_label' => 'Menunggu Konfirmasi',
-                'status_desc' => 'Admin kami sedang memverifikasi data identitas (KTP & SIM) dan ketersediaan unit di sistem garasi.',
-                'status_color' => 'amber', // amber / emerald / blue / gray
-                'step_index' => 1, // 1 to 4
-                'created_at' => '14 Okt 2026, 14:30 WIB',
-                'customer_name' => 'Ahmad Fauzi',
-                'customer_phone' => '0812-3456-7890',
-                'customer_category' => 'Mahasiswa (Diskon Pelajar)',
-                'vehicle' => [
-                    'id' => 1,
-                    'slug' => 'honda-beat-cbs',
-                    'name' => 'Honda Beat CBS eSP',
-                    'brand' => 'Honda',
-                    'type' => 'motor',
-                    'plate' => 'B 4821 KTF',
-                    'transmission' => 'Matic CVT',
-                    'image' => 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
-                ],
-                'rental_period' => [
-                    'start_datetime' => '15 Okt 2026 • 09:00 WIB',
-                    'end_datetime' => '18 Okt 2026 • 09:00 WIB',
-                    'duration_type' => 'daily',
-                    'duration_label' => '3 Hari (Harian)',
-                    'duration_count' => 3,
-                ],
-                'pickup' => [
-                    'method' => 'garage',
-                    'label' => 'Ambil Sendiri di Garasi (Gratis)',
-                    'fee' => 0,
-                    'address' => 'Garasi Pusat X-RENT, Jl. Cilandak KKO No. 45, Pasar Minggu, Jakarta Selatan (Patokan: 50m samping SPBU Pertamina)',
-                    'contact_person' => 'Bpk. Hendra (Koordinator Garasi) • 0812-8888-9999',
-                ],
-                'payment' => [
-                    'unit_rate' => 85000,
-                    'subtotal_rent' => 255000,
-                    'delivery_fee' => 0,
-                    'deposit_amount' => 50000,
-                    'total_payable' => 305000,
-                    'status' => 'Belum Dibayar',
-                    'method' => 'Bayar di Tempat (Tunai / QRIS / Transfer BCA)',
-                    'is_paid' => false,
-                ],
-                'notes' => 'Tolong sediakan helm ukuran L dan jas hujan ponco warna gelap.',
-                'timeline' => [
-                    [
-                        'step' => 1,
-                        'name' => 'Pesanan Dibuat',
-                        'desc' => 'Formulir online berhasil dikirim ke server X-RENT.',
-                        'time' => '14 Okt 2026, 14:30 WIB',
-                        'status' => 'completed',
-                        'icon' => 'receipt_long',
-                    ],
-                    [
-                        'step' => 2,
-                        'name' => 'Verifikasi Identitas & Unit',
-                        'desc' => 'Admin mengecek keabsahan KTP & SIM C penyewa.',
-                        'time' => 'Sedang berlangsung...',
-                        'status' => 'current',
-                        'icon' => 'verified_user',
-                    ],
-                    [
-                        'step' => 3,
-                        'name' => 'Pengambilan / Serah Terima Unit',
-                        'desc' => 'Penyewa datang ke Garasi Cilandak untuk cek fisik unit & kunci.',
-                        'time' => 'Est. 15 Okt 2026, 09:00 WIB',
-                        'status' => 'upcoming',
-                        'icon' => 'key',
-                    ],
-                    [
-                        'step' => 4,
-                        'name' => 'Selesai & Pengembalian Deposit',
-                        'desc' => 'Unit dikembalikan utuh, deposit Rp 50.000 direfund seketika.',
-                        'time' => 'Est. 18 Okt 2026, 09:00 WIB',
-                        'status' => 'upcoming',
-                        'icon' => 'task_alt',
-                    ],
-                ],
+            'id' => $booking->id,
+            'code' => $booking->booking_code,
+            'status' => $booking->status,
+            'status_label' => $booking->status_label,
+            'status_desc' => $statusDesc,
+            'step_index' => $stepIndex,
+            'created_at' => $booking->created_at ? $booking->created_at->format('d M Y, H:i') . ' WIB' : '14 Okt 2026, 14:30 WIB',
+            'customer_name' => $booking->customer_name,
+            'customer_phone' => $booking->customer_phone,
+            'customer_category' => ucfirst($booking->customer_type),
+            'vehicle' => [
+                'id' => $vehicle ? $vehicle->id : 1,
+                'slug' => $vehicle ? $vehicle->slug : 'honda-beat-cbs',
+                'name' => $vehicle ? $vehicle->name : 'Unit Kendaraan',
+                'brand' => $vehicle ? $vehicle->brand : 'Honda',
+                'type' => $vehicle ? $vehicle->type : 'motor',
+                'plate' => $vehicle ? $vehicle->license_plate : 'B 1234 XYZ',
+                'transmission' => $vehicle ? $vehicle->transmission : 'Matic',
+                'image' => $vehicle ? $vehicle->image : 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
             ],
-
-            // 2. CONFIRMED: Pesanan Diterima / Siap Diambil
-            [
-                'id' => 2,
-                'code' => 'XR-20261014-CD34',
-                'status' => 'confirmed',
-                'status_label' => 'Pesanan Dikonfirmasi (Siap Diantar)',
-                'status_desc' => 'Unit telah disiapkan, dicuci bersih, dan dijadwalkan untuk pengantaran drop-off ke lokasi Anda.',
-                'status_color' => 'blue',
-                'step_index' => 2,
-                'created_at' => '14 Okt 2026, 10:15 WIB',
-                'customer_name' => 'Jessica Stephanie',
-                'customer_phone' => '0813-9876-5432',
-                'customer_category' => 'Wisatawan Mancanegara / Domestik',
-                'vehicle' => [
-                    'id' => 8,
-                    'slug' => 'honda-brio-rs-matic',
-                    'name' => 'Honda Brio RS Urbanite Matic',
-                    'brand' => 'Honda',
-                    'type' => 'mobil',
-                    'plate' => 'B 1928 WQA',
-                    'transmission' => 'Matic CVT',
-                    'image' => 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
-                ],
-                'rental_period' => [
-                    'start_datetime' => '15 Okt 2026 • 11:00 WIB',
-                    'end_datetime' => '17 Okt 2026 • 11:00 WIB',
-                    'duration_type' => 'daily',
-                    'duration_label' => '2 Hari (Harian)',
-                    'duration_count' => 2,
-                ],
-                'pickup' => [
-                    'method' => 'delivery',
-                    'label' => 'Layanan Antar ke Lokasi (Drop-Off)',
-                    'fee' => 25000,
-                    'address' => 'Hotel Artotel Thamrin, Lobby Utama, Jl. Sunda No. 3, Menteng, Jakarta Pusat',
-                    'contact_person' => 'Driver: Mas Dimas (0812-9911-2233) • Toyota HiAce Antar',
-                ],
-                'payment' => [
-                    'unit_rate' => 280000,
-                    'subtotal_rent' => 560000,
-                    'delivery_fee' => 25000,
-                    'deposit_amount' => 200000,
-                    'total_payable' => 785000,
-                    'status' => 'DP Terbayar 50% (Rp 392.500)',
-                    'method' => 'Transfer Bank BCA (Sisa Pelunasan saat Serah Kunci)',
-                    'is_paid' => true,
-                ],
-                'notes' => 'Mohon mobil disemprot disinfektan wangi aroma kopi / citrus.',
-                'timeline' => [
-                    [
-                        'step' => 1,
-                        'name' => 'Pesanan Dibuat',
-                        'desc' => 'Formulir online berhasil dikirim ke server X-RENT.',
-                        'time' => '14 Okt 2026, 10:15 WIB',
-                        'status' => 'completed',
-                        'icon' => 'receipt_long',
-                    ],
-                    [
-                        'step' => 2,
-                        'name' => 'Verifikasi & Konfirmasi Disetujui',
-                        'desc' => 'Admin telah menyetujui jadwal sewa & menerima DP komitmen.',
-                        'time' => '14 Okt 2026, 10:45 WIB',
-                        'status' => 'completed',
-                        'icon' => 'verified_user',
-                    ],
-                    [
-                        'step' => 3,
-                        'name' => 'Pengantaran Drop-off Unit',
-                        'desc' => 'Driver akan tiba di Lobby Hotel Artotel 30 menit sebelum jadwal.',
-                        'time' => 'Dijadwalkan: 15 Okt 2026, 10:30 WIB',
-                        'status' => 'current',
-                        'icon' => 'local_shipping',
-                    ],
-                    [
-                        'step' => 4,
-                        'name' => 'Selesai & Pengembalian Deposit',
-                        'desc' => 'Unit diambil kembali oleh driver di lobby hotel & refund deposit.',
-                        'time' => 'Est. 17 Okt 2026, 11:00 WIB',
-                        'status' => 'upcoming',
-                        'icon' => 'task_alt',
-                    ],
-                ],
+            'rental_period' => [
+                'start_datetime' => $startDateStr,
+                'end_datetime' => $endDateStr,
+                'duration_type' => $booking->duration_type,
+                'duration_label' => $durationLabel,
+                'duration_count' => $booking->duration_count,
             ],
-
-            // 3. ONGOING: Sedang Disewa
-            [
-                'id' => 3,
-                'code' => 'XR-20261014-EF56',
-                'status' => 'ongoing',
-                'status_label' => 'Sedang Disewa (Aktif)',
-                'status_desc' => 'Unit kendaraan saat ini sedang aktif digunakan oleh penyewa. Nikmati perjalanan aman bersama X-RENT!',
-                'status_color' => 'emerald',
-                'step_index' => 3,
-                'created_at' => '13 Okt 2026, 08:00 WIB',
-                'customer_name' => 'Budi Santoso',
-                'customer_phone' => '0817-2233-4455',
-                'customer_category' => 'Pekerja Kantor / Perjalanan Dinas',
-                'vehicle' => [
-                    'id' => 7,
-                    'slug' => 'toyota-all-new-avanza',
-                    'name' => 'Toyota All New Avanza 1.5 G',
-                    'brand' => 'Toyota',
-                    'type' => 'mobil',
-                    'plate' => 'B 2841 TRL',
-                    'transmission' => 'Matic CVT',
-                    'image' => 'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80',
-                ],
-                'rental_period' => [
-                    'start_datetime' => '13 Okt 2026 • 10:00 WIB',
-                    'end_datetime' => '16 Okt 2026 • 10:00 WIB',
-                    'duration_type' => 'daily',
-                    'duration_label' => '3 Hari (Harian)',
-                    'duration_count' => 3,
-                ],
-                'pickup' => [
-                    'method' => 'garage',
-                    'label' => 'Ambil Sendiri di Garasi Pusat Cilandak',
-                    'fee' => 0,
-                    'address' => 'Garasi Pusat X-RENT, Jl. Cilandak KKO No. 45, Jakarta Selatan',
-                    'contact_person' => 'Koordinator: Mas Bayu (0812-7766-5544)',
-                ],
-                'payment' => [
-                    'unit_rate' => 380000,
-                    'subtotal_rent' => 1140000,
-                    'delivery_fee' => 0,
-                    'deposit_amount' => 200000,
-                    'total_payable' => 1340000,
-                    'status' => 'Lunas 100% (Termasuk Asuransi All-Risk)',
-                    'method' => 'Transfer QRIS Mandiri',
-                    'is_paid' => true,
-                ],
-                'notes' => 'Rute dinas kantor menuju Kawasan Industri Karawang & Bandung.',
-                'timeline' => [
-                    [
-                        'step' => 1,
-                        'name' => 'Pesanan Dibuat',
-                        'desc' => 'Formulir online berhasil dikirim ke server X-RENT.',
-                        'time' => '13 Okt 2026, 08:00 WIB',
-                        'status' => 'completed',
-                        'icon' => 'receipt_long',
-                    ],
-                    [
-                        'step' => 2,
-                        'name' => 'Verifikasi Disetujui',
-                        'desc' => 'Dokumen SIM A & KTP telah diverifikasi lengkap.',
-                        'time' => '13 Okt 2026, 09:15 WIB',
-                        'status' => 'completed',
-                        'icon' => 'verified_user',
-                    ],
-                    [
-                        'step' => 3,
-                        'name' => 'Serah Terima Kunci Unit',
-                        'desc' => 'Unit Avanza B 2841 TRL telah diserahterimakan kepada Budi Santoso.',
-                        'time' => '13 Okt 2026, 10:05 WIB',
-                        'status' => 'completed',
-                        'icon' => 'key',
-                    ],
-                    [
-                        'step' => 4,
-                        'name' => 'Pengembalian Unit & Refund Deposit',
-                        'desc' => 'Jadwal pengembalian ke Garasi Cilandak sebelum batas sewa berakhir.',
-                        'time' => 'Batas Waktu: 16 Okt 2026, 10:00 WIB',
-                        'status' => 'current',
-                        'icon' => 'task_alt',
-                    ],
-                ],
+            'pickup' => [
+                'method' => $booking->delivery_option,
+                'label' => $booking->delivery_option === 'delivery'
+                    ? 'Layanan Antar ke Lokasi (Drop-Off)'
+                    : 'Ambil Sendiri di Garasi Pusat Cilandak',
+                'fee' => (int) $booking->delivery_fee,
+                'address' => $booking->pickup_address ?: 'Garasi Pusat X-RENT, Jl. Cilandak KKO No. 45, Jakarta Selatan',
+                'contact_person' => 'Koordinator Garasi: Mas Hendra • 0812-8888-9999',
             ],
-
-            // 4. COMPLETED: Selesai
-            [
-                'id' => 4,
-                'code' => 'XR-20261014-GH78',
-                'status' => 'completed',
-                'status_label' => 'Sewa Selesai (Unit Telah Dikembalikan)',
-                'status_desc' => 'Unit telah diterima kembali oleh staf garasi dalam kondisi sangat baik. Deposit jaminan telah direfund 100%. Terima kasih telah mempercayai X-RENT!',
-                'status_color' => 'blue',
-                'step_index' => 4,
-                'created_at' => '10 Okt 2026, 09:00 WIB',
-                'customer_name' => 'Rian Hidayat',
-                'customer_phone' => '0819-7788-9900',
-                'customer_category' => 'Umum',
-                'vehicle' => [
-                    'id' => 4,
-                    'slug' => 'yamaha-nmax-155-connected',
-                    'name' => 'Yamaha NMAX 155 Connected ABS',
-                    'brand' => 'Yamaha',
-                    'type' => 'motor',
-                    'plate' => 'B 3109 PZK',
-                    'transmission' => 'Matic CVT',
-                    'image' => 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
-                ],
-                'rental_period' => [
-                    'start_datetime' => '11 Okt 2026 • 08:00 WIB',
-                    'end_datetime' => '14 Okt 2026 • 08:00 WIB',
-                    'duration_type' => 'daily',
-                    'duration_label' => '3 Hari (Harian)',
-                    'duration_count' => 3,
-                ],
-                'pickup' => [
-                    'method' => 'garage',
-                    'label' => 'Ambil Sendiri di Garasi Pusat Cilandak',
-                    'fee' => 0,
-                    'address' => 'Garasi Pusat X-RENT, Jl. Cilandak KKO No. 45, Jakarta Selatan',
-                    'contact_person' => 'Staf Penerima: Mas Agung (0812-8888-9999)',
-                ],
-                'payment' => [
-                    'unit_rate' => 145000,
-                    'subtotal_rent' => 435000,
-                    'delivery_fee' => 0,
-                    'deposit_amount' => 50000,
-                    'total_payable' => 485000,
-                    'status' => 'Selesai & Deposit Direfund Penuh (Rp 50.000)',
-                    'method' => 'Tunai di Garasi',
-                    'is_paid' => true,
-                ],
-                'notes' => 'Pengembalian tepat waktu, helm & jas hujan lengkap tanpa cacat.',
-                'timeline' => [
-                    [
-                        'step' => 1,
-                        'name' => 'Pesanan Dibuat',
-                        'desc' => 'Formulir online berhasil dikirim ke server X-RENT.',
-                        'time' => '10 Okt 2026, 09:00 WIB',
-                        'status' => 'completed',
-                        'icon' => 'receipt_long',
-                    ],
-                    [
-                        'step' => 2,
-                        'name' => 'Verifikasi Disetujui',
-                        'desc' => 'Data KTP & SIM C disetujui tanpa kendala.',
-                        'time' => '10 Okt 2026, 11:00 WIB',
-                        'status' => 'completed',
-                        'icon' => 'verified_user',
-                    ],
-                    [
-                        'step' => 3,
-                        'name' => 'Unit Diambil Penyewa',
-                        'desc' => 'Penyewa menerima kunci, 2 helm SNI, dan unit NMAX.',
-                        'time' => '11 Okt 2026, 08:10 WIB',
-                        'status' => 'completed',
-                        'icon' => 'key',
-                    ],
-                    [
-                        'step' => 4,
-                        'name' => 'Inspeksi & Refund Deposit Selesai',
-                        'desc' => 'Unit diterima kembali dalam kondisi prima. Deposit Rp 50.000 ditransfer kembali.',
-                        'time' => '14 Okt 2026, 08:15 WIB',
-                        'status' => 'completed',
-                        'icon' => 'task_alt',
-                    ],
-                ],
+            'payment' => [
+                'unit_rate' => $booking->duration_count > 0 ? (int) ($subtotal / $booking->duration_count) : 0,
+                'subtotal_rent' => (int) $subtotal,
+                'delivery_fee' => (int) $booking->delivery_fee,
+                'deposit_amount' => (int) $booking->deposit_amount,
+                'total_payable' => (int) $booking->total_price,
+                'status' => $booking->payment_status ?: 'Belum Dibayar',
+                'method' => 'Transfer Bank / QRIS / Tunai di Garasi',
+                'is_paid' => $booking->status !== 'pending',
             ],
+            'notes' => $booking->notes,
+            'timeline' => $timeline,
         ];
     }
 }

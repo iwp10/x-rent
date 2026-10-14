@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Booking;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -44,7 +45,7 @@ class TrackBookingTest extends TestCase
     }
 
     /**
-     * Test booking store simulation redirects to /cek-pesanan with code.
+     * Test booking store saves into database, generates unique code, and redirects with WhatsApp URL.
      */
     public function test_booking_store_simulation_redirects(): void
     {
@@ -60,7 +61,22 @@ class TrackBookingTest extends TestCase
             'vehicle_name' => 'Honda Beat CBS eSP',
         ]);
 
-        $response->assertRedirect('/cek-pesanan?code=XR-20261014-AB12');
+        $response->assertStatus(302);
         $response->assertSessionHas('success');
+        $response->assertSessionHas('whatsapp_url');
+
+        // Verify booking in database
+        $this->assertDatabaseHas('bookings', [
+            'customer_name' => 'Fauzi Rahman',
+            'customer_phone' => '081234567890',
+            'status' => 'pending',
+            'duration_count' => 3,
+        ]);
+
+        $created = Booking::where('customer_name', 'Fauzi Rahman')->first();
+        $this->assertNotNull($created);
+        $this->assertStringStartsWith('XR-', $created->booking_code);
+
+        $response->assertRedirect('/cek-pesanan?code=' . $created->booking_code);
     }
 }

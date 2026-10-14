@@ -12,10 +12,10 @@
 - [x] **Task 2.5:** Buat `Pages/TrackBooking.vue` beserta `BookingController@track` (Input kode booking `XR-XXXX` dan visualisasi *Progress Stepper* status penyewaan).
 
 ## Fase 3: Integrasi Database MySQL & Backend Logic
-- [ ] **Task 3.1:** Buat Migration, Model, dan Seeder untuk `categories`, `vehicles`, `bookings`, dan 1 akun `Admin`.
-- [ ] **Task 3.2:** Hubungkan `HomeController` dan `VehicleController` dengan data asli dari database MySQL.
-- [ ] **Task 3.3:** Implementasi `BookingController@store` (Validasi form, simpan ke tabel `bookings`, generate kode `XR-YYYYMMDD-XXXX`, dan *redirect* link konfirmasi ke WhatsApp Admin).
-- [ ] **Task 3.4:** Hubungkan pencarian kode booking di `TrackBooking.vue` dengan tabel `bookings`.
+- [x] **Task 3.1:** Buat Migration, Model, dan Seeder untuk `categories`, `vehicles`, `bookings`, dan 1 akun `Admin`.
+- [x] **Task 3.2:** Hubungkan `HomeController` dan `VehicleController` dengan data asli dari database MySQL.
+- [x] **Task 3.3:** Implementasi `BookingController@store` (Validasi form, simpan ke tabel `bookings`, generate kode `XR-YYYYMMDD-XXXX`, dan *redirect* link konfirmasi ke WhatsApp Admin).
+- [x] **Task 3.4:** Hubungkan pencarian kode booking di `TrackBooking.vue` dengan tabel `bookings`.
 
 ## Fase 4: Panel Admin Pengelola
 - [ ] **Task 4.1:** Buat autentikasi Login Admin sederhana & `Layouts/AdminLayout.vue`.
