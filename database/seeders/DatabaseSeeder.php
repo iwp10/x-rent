@@ -16,7 +16,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Admin Account (Task 3.1)
+        // 1. Admin Account (Task 4.1)
+        User::updateOrCreate(
+            ['email' => 'admin@x-rent.test'],
+            [
+                'name' => 'Admin X-RENT',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ]
+        );
         User::updateOrCreate(
             ['email' => 'admin@xrent.id'],
             [

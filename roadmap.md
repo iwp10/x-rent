@@ -18,5 +18,5 @@
 - [x] **Task 3.4:** Hubungkan pencarian kode booking di `TrackBooking.vue` dengan tabel `bookings`.
 
 ## Fase 4: Panel Admin Pengelola
-- [ ] **Task 4.1:** Buat autentikasi Login Admin sederhana & `Layouts/AdminLayout.vue`.
-- [ ] **Task 4.2:** Buat halaman Dashboard Admin untuk mengelola unit motor (ubah status Tersedia/Disewa/Servis) dan mengubah status pesanan pelanggan (`Menunggu Konfirmasi` -> `Diterima` -> `Sedang Disewa` -> `Selesai`).
+- [x] **Task 4.1:** Buat autentikasi Login Admin sederhana & `Layouts/AdminLayout.vue`.
+- [x] **Task 4.2:** Buat halaman Dashboard Admin untuk mengelola unit motor (ubah status Tersedia/Disewa/Servis) dan mengubah status pesanan pelanggan (`Menunggu Konfirmasi` -> `Diterima` -> `Sedang Disewa` -> `Selesai`).
