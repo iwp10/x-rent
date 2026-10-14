@@ -1,17 +1,30 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const props = defineProps({
     vehicle: {
         type: Object,
         required: true,
     },
+    period: {
+        type: String,
+        default: 'daily',
+    },
 });
 
 const emit = defineEmits(['open-detail', 'select-booking']);
 
 // Interactive pricing tab: 'daily' | 'weekly' | 'monthly'
-const priceMode = ref('daily');
+const priceMode = ref(props.period || 'daily');
+
+watch(
+    () => props.period,
+    (newVal) => {
+        if (newVal) {
+            priceMode.value = newVal;
+        }
+    }
+);
 
 const currentPrice = computed(() => {
     if (!props.vehicle.prices) return 0;

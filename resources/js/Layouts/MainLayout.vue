@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
+
+const page = usePage();
 
 const isMobileMenuOpen = ref(false);
 const isScrolled = ref(false);
@@ -27,13 +29,19 @@ onUnmounted(() => {
 });
 
 const navLinks = [
-    { label: 'Beranda', href: '/' },
-    { label: 'Armada Mobil', href: '/#armada-mobil' },
-    { label: 'Armada Motor', href: '/#armada-motor' },
-    { label: 'Paket Wisata & Supir', href: '/#paket-wisata' },
-    { label: 'Syarat & Ketentuan', href: '/#syarat' },
-    { label: 'Cek Booking', href: '/#cek-booking' },
+    { label: 'Beranda', href: '/', isRoute: true },
+    { label: 'Katalog Semua', href: '/katalog', isRoute: true },
+    { label: 'Armada Mobil', href: '/armada-mobil', isRoute: true },
+    { label: 'Armada Motor', href: '/armada-motor', isRoute: true },
+    { label: 'Syarat & Ketentuan', href: '/#syarat', isRoute: false },
+    { label: 'Lokasi Garasi', href: '/#lokasi', isRoute: false },
+    { label: 'FAQ', href: '/#faq', isRoute: false },
 ];
+
+const isActive = (href) => {
+    if (href === '/') return page.url === '/';
+    return page.url.startsWith(href);
+};
 
 const waNumber = '6281288889999';
 const waMessage = encodeURIComponent('Halo X-RENT, saya ingin tanya ketersediaan rental kendaraan (mobil/motor).');
@@ -87,27 +95,38 @@ const waUrl = `https://wa.me/${waNumber}?text=${waMessage}`;
 
                 <!-- Desktop Nav Links -->
                 <nav class="hidden xl:flex items-center gap-6 text-[15px]">
-                    <a
-                        v-for="link in navLinks"
-                        :key="link.label"
-                        :href="link.href"
-                        class="text-on-surface-variant hover:text-primary transition-colors py-1 font-medium"
-                    >
-                        {{ link.label }}
-                    </a>
+                    <template v-for="link in navLinks" :key="link.label">
+                        <Link
+                            v-if="link.isRoute"
+                            :href="link.href"
+                            class="transition-colors py-1 font-medium relative"
+                            :class="[
+                                isActive(link.href)
+                                    ? 'text-primary font-bold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary after:rounded-full'
+                                    : 'text-on-surface-variant hover:text-primary'
+                            ]"
+                        >
+                            {{ link.label }}
+                        </Link>
+                        <a
+                            v-else
+                            :href="link.href"
+                            class="text-on-surface-variant hover:text-primary transition-colors py-1 font-medium"
+                        >
+                            {{ link.label }}
+                        </a>
+                    </template>
                 </nav>
 
                 <!-- Navbar Action CTAs -->
                 <div class="flex items-center gap-3">
-                    <a
-                        :href="waUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <Link
+                        href="/katalog"
                         class="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container-high text-primary hover:bg-surface-variant font-title-md text-sm font-semibold transition-colors"
                     >
-                        <span class="material-symbols-outlined text-[18px]">support_agent</span>
-                        <span>Hubungi CS</span>
-                    </a>
+                        <span class="material-symbols-outlined text-[18px]">search</span>
+                        <span>Cari Unit</span>
+                    </Link>
 
                     <a
                         :href="waUrl"
@@ -147,15 +166,30 @@ const waUrl = `https://wa.me/${waNumber}?text=${waMessage}`;
                     class="xl:hidden bg-surface-container-lowest border-b border-surface-container-highest px-4 pt-3 pb-6 shadow-xl"
                 >
                     <nav class="flex flex-col gap-1">
-                        <a
-                            v-for="link in navLinks"
-                            :key="link.label"
-                            :href="link.href"
-                            @click="closeMobileMenu"
-                            class="px-4 py-3 rounded-xl text-base font-semibold text-on-surface hover:text-primary hover:bg-surface-container-low transition"
-                        >
-                            {{ link.label }}
-                        </a>
+                        <template v-for="link in navLinks" :key="link.label">
+                            <Link
+                                v-if="link.isRoute"
+                                :href="link.href"
+                                @click="closeMobileMenu"
+                                class="px-4 py-3 rounded-xl text-base font-semibold transition flex items-center justify-between"
+                                :class="[
+                                    isActive(link.href)
+                                        ? 'bg-primary/10 text-primary font-bold'
+                                        : 'text-on-surface hover:text-primary hover:bg-surface-container-low'
+                                ]"
+                            >
+                                <span>{{ link.label }}</span>
+                                <span v-if="isActive(link.href)" class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                            </Link>
+                            <a
+                                v-else
+                                :href="link.href"
+                                @click="closeMobileMenu"
+                                class="px-4 py-3 rounded-xl text-base font-semibold text-on-surface hover:text-primary hover:bg-surface-container-low transition"
+                            >
+                                {{ link.label }}
+                            </a>
+                        </template>
                     </nav>
 
                     <div class="mt-4 pt-4 border-t border-surface-container-highest flex flex-col gap-3">
@@ -296,11 +330,12 @@ const waUrl = `https://wa.me/${waNumber}?text=${waMessage}`;
                     <div class="lg:col-span-2 space-y-3">
                         <h3 class="font-title-md text-base font-bold text-on-surface">Menu Utama</h3>
                         <ul class="space-y-2 font-body-sm text-xs text-on-surface-variant">
-                            <li><a class="hover:text-primary transition-colors" href="/#">Beranda</a></li>
-                            <li><a class="hover:text-primary transition-colors" href="/#armada-mobil">Armada Mobil</a></li>
-                            <li><a class="hover:text-primary transition-colors" href="/#armada-motor">Armada Motor</a></li>
-                            <li><a class="hover:text-primary transition-colors" href="/#paket-wisata">Paket Wisata & Supir</a></li>
+                            <li><Link class="hover:text-primary transition-colors" href="/">Beranda</Link></li>
+                            <li><Link class="hover:text-primary transition-colors" href="/katalog">Katalog Lengkap</Link></li>
+                            <li><Link class="hover:text-primary transition-colors" href="/armada-mobil">Armada Mobil</Link></li>
+                            <li><Link class="hover:text-primary transition-colors" href="/armada-motor">Armada Motor</Link></li>
                             <li><a class="hover:text-primary transition-colors" href="/#syarat">Ketentuan Rental</a></li>
+                            <li><a class="hover:text-primary transition-colors" href="/#lokasi">Lokasi Garasi</a></li>
                             <li><a class="hover:text-primary transition-colors" href="/#faq">Pusat Bantuan / FAQ</a></li>
                         </ul>
                     </div>

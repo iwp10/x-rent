@@ -705,6 +705,135 @@ const getHeroWhatsAppSearchUrl = () => {
                 </div>
             </section>
 
+            <!-- SECTION: LOKASI GARASI & TITIK PENGAMBILAN (PRD Requirement & Roadmap Task 2.1) -->
+            <section id="lokasi" class="w-full py-16 lg:py-24 bg-surface scroll-mt-20 border-t border-surface-container-highest/60">
+                <div class="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
+                    <div class="flex flex-col md:flex-row md:items-end md:justify-between mb-12">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="h-2 w-8 rounded-full bg-primary"></span>
+                                <span class="font-label-badge text-xs uppercase tracking-wider text-primary font-bold">
+                                    Jaringan Garasi Resmi X-RENT
+                                </span>
+                            </div>
+                            <h2 class="mt-2 font-headline-lg text-2xl lg:text-3xl font-bold text-on-surface">
+                                Lokasi Garasi & Titik Pengambilan Armada
+                            </h2>
+                            <p class="mt-1 font-body-md text-sm text-on-surface-variant max-w-2xl">
+                                Ambil langsung di garasi pusat kami dengan customer lounge nyaman ber-AC, atau manfaatkan layanan antar-jemput on-time ke Bandara, Stasiun, Hotel, dan Rumah Anda se-Jabodetabek.
+                            </p>
+                        </div>
+
+                        <div class="mt-4 md:mt-0 flex items-center gap-2 text-xs font-semibold text-tertiary bg-tertiary-fixed/40 px-3.5 py-2 rounded-xl border border-tertiary/20">
+                            <span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+                            <span>CS Siaga Koordinasi Penjemputan 24 Jam</span>
+                        </div>
+                    </div>
+
+                    <!-- Garage Cards Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div
+                            v-for="loc in garageLocations"
+                            :key="loc.id"
+                            class="rounded-2xl bg-surface-container-lowest p-6 shadow-sm border border-surface-container-highest/70 hover:shadow-md transition-all flex flex-col justify-between"
+                        >
+                            <div class="space-y-3.5">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                                            <span class="material-symbols-outlined text-[24px]">location_on</span>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-headline-sm text-base font-bold text-on-surface">
+                                                {{ loc.name }}
+                                            </h3>
+                                            <span class="inline-block mt-0.5 rounded-full bg-surface-container-high px-2.5 py-0.5 font-spec-data text-[11px] font-semibold text-primary">
+                                                {{ loc.badge }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2 text-xs text-on-surface-variant pt-2 border-t border-surface-container-low">
+                                    <p class="flex items-start gap-2">
+                                        <span class="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5">pin_drop</span>
+                                        <span class="text-on-surface font-medium">{{ loc.address }}</span>
+                                    </p>
+                                    <p class="flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-[16px] text-tertiary shrink-0">schedule</span>
+                                        <span>{{ loc.hours }}</span>
+                                    </p>
+                                    <p v-if="loc.notes" class="bg-surface-container-low p-3 rounded-xl text-on-surface-variant leading-relaxed text-[11.5px]">
+                                        {{ loc.notes }}
+                                    </p>
+                                </div>
+
+                                <!-- Features Pills -->
+                                <div v-if="loc.features" class="flex flex-wrap gap-1.5 pt-2">
+                                    <span
+                                        v-for="(feat, fIdx) in loc.features"
+                                        :key="fIdx"
+                                        class="inline-flex items-center gap-1 rounded-lg bg-surface-container-high/60 px-2.5 py-1 text-[11px] text-on-surface-variant font-medium"
+                                    >
+                                        <span class="material-symbols-outlined text-[13px] text-tertiary">check</span>
+                                        {{ feat }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 pt-4 border-t border-surface-container-highest/60 flex items-center justify-between gap-3">
+                                <a
+                                    :href="`https://wa.me/6281288889999?text=${encodeURIComponent('Halo X-RENT, saya ingin sewa unit dengan titik pengambilan/antar di ' + loc.name)}`"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-on-primary py-2.5 px-4 font-title-md text-xs font-semibold shadow-xs hover:bg-primary-container transition active:scale-95 text-center"
+                                >
+                                    <span class="material-symbols-outlined text-[16px]">directions_car</span>
+                                    <span>Ambil di Sini via WA</span>
+                                </a>
+
+                                <a
+                                    :href="`https://maps.google.com/?q=${encodeURIComponent(loc.name + ' ' + loc.address)}`"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-surface-container-high text-on-surface hover:text-primary py-2.5 px-3.5 font-title-md text-xs font-semibold transition"
+                                    title="Petunjuk Arah Google Maps"
+                                >
+                                    <span class="material-symbols-outlined text-[16px]">map</span>
+                                    <span class="hidden sm:inline">Peta</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Delivery Service Highlight Box -->
+                    <div class="mt-10 rounded-2xl bg-gradient-to-r from-surface-container-lowest to-surface-container-low p-6 border border-surface-container-highest/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-2xl bg-tertiary/10 text-tertiary flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-[28px]">local_shipping</span>
+                            </div>
+                            <div>
+                                <h4 class="font-headline-sm text-base font-bold text-on-surface">
+                                    Layanan Antar-Jemput Gratis ke Lokasi Anda*
+                                </h4>
+                                <p class="text-xs text-on-surface-variant mt-0.5">
+                                    Untuk masa sewa minimal 3 hari, nikmati pengantaran gratis ke radius 10 km dari garasi terdekat atau Terminal Bandara Soetta.
+                                </p>
+                            </div>
+                        </div>
+                        <a
+                            href="https://wa.me/6281288889999?text=Halo%20X-RENT,%20saya%20ingin%20tanya%20layanan%20antar%20jemput%20kendaraan%20ke%20lokasi%20saya"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center gap-2 rounded-xl bg-tertiary text-on-primary px-5 py-2.5 font-title-md text-xs font-bold hover:bg-tertiary-container transition shadow-xs shrink-0"
+                        >
+                            <span>Cek Jadwal Antar</span>
+                            <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
             <!-- SECTION: FAQ ACCORDION INTERAKTIF (PRD Requirement) -->
             <section id="faq" class="w-full py-16 lg:py-24 bg-surface scroll-mt-20">
                 <div class="mx-auto max-w-[860px] px-4 sm:px-6 lg:px-8">
