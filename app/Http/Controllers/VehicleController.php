@@ -47,7 +47,44 @@ class VehicleController extends Controller
     }
 
     /**
-     * Master dummy data for fleet vehicles (10 units: Motor & Mobil).
+     * Display the vehicle detail page (Task 2.4 roadmap.md).
+     */
+    public function show(Request $request, string $slug): Response
+    {
+        $vehicles = self::getDummyFleet();
+        $vehicle = null;
+
+        foreach ($vehicles as $item) {
+            if ($item['slug'] === $slug || (string)$item['id'] === $slug) {
+                $vehicle = $item;
+                break;
+            }
+        }
+
+        if (!$vehicle) {
+            abort(404, 'Kendaraan tidak ditemukan di armada kami.');
+        }
+
+        // Get related vehicles (exclude current, take 3)
+        $related = array_values(array_filter($vehicles, function ($item) use ($vehicle) {
+            return $item['id'] !== $vehicle['id'] && ($item['type'] === $vehicle['type'] || $item['category'] === $vehicle['category']);
+        }));
+
+        if (count($related) < 3) {
+            $related = array_values(array_filter($vehicles, function ($item) use ($vehicle) {
+                return $item['id'] !== $vehicle['id'];
+            }));
+        }
+        $related = array_slice($related, 0, 3);
+
+        return Inertia::render('VehicleDetail', [
+            'vehicle' => $vehicle,
+            'relatedVehicles' => $related,
+        ]);
+    }
+
+    /**
+     * Master dummy data for fleet vehicles (11 units: Motor & Mobil).
      */
     public static function getDummyFleet(): array
     {
@@ -55,6 +92,7 @@ class VehicleController extends Controller
             // 1. Honda Beat CBS
             [
                 'id' => 1,
+                'slug' => 'honda-beat-cbs',
                 'name' => 'Honda Beat CBS eSP',
                 'brand' => 'Honda',
                 'type' => 'motor',
@@ -69,6 +107,12 @@ class VehicleController extends Controller
                 'badge' => 'Paling Irit',
                 'subtitle' => 'Paling Gesit & Irit BBM 1:60 km/L untuk Rute Padat',
                 'image' => 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 85000,
                 'price_weekly' => 530000,
                 'price_monthly' => 1750000,
@@ -83,13 +127,21 @@ class VehicleController extends Controller
                     ['icon' => 'sports_motorsports', 'label' => '2 Helm SNI'],
                     ['icon' => 'local_gas_station', 'label' => '1:60 km/L'],
                 ],
-                'facilities' => 'Gratis 2 helm SNI higienis, 2 jas hujan ponco, holder smartphone tahan air.',
+                'facilities' => 'Gratis 2 helm SNI higienis & wangi, 2 jas hujan ponco tebal, holder smartphone anti-air di stang.',
+                'condition_notes' => 'Unit tahun 2024 kilometer rendah (< 12.000 km), ban tubeless baru ganti, servis berkala rutin dealer resmi Astra Honda, kampas rem tebal, dan mesin sangat halus.',
                 'driver_option' => 'Lepas Kunci',
                 'features' => ['Combi Brake System (CBS)', 'Power Charger USB', 'Rangka Bergaransi', 'Ban Tubeless Baru'],
+                'requirements' => [
+                    'E-KTP Asli penyewa (wajib aktif)',
+                    'SIM C Aktif yang sah dari Kepolisian',
+                    'Deposit jaminan Rp 50.000 (Refundable 100% saat unit dikembalikan aman)',
+                    'Denda keterlambatan Rp 15.000 / jam (toleransi keterlambatan 30 menit jika ada konfirmasi)',
+                ],
             ],
             // 2. Honda Scoopy Prestige
             [
                 'id' => 2,
+                'slug' => 'honda-scoopy-prestige',
                 'name' => 'Honda Scoopy Prestige Smart Key',
                 'brand' => 'Honda',
                 'type' => 'motor',
@@ -104,6 +156,12 @@ class VehicleController extends Controller
                 'badge' => 'Retro Trendy',
                 'subtitle' => 'Desain Estetik Klasik • Smart Keyless Anti Maling',
                 'image' => 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 95000,
                 'price_weekly' => 595000,
                 'price_monthly' => 1950000,
@@ -118,13 +176,21 @@ class VehicleController extends Controller
                     ['icon' => 'sports_motorsports', 'label' => '2 Helm Bogo'],
                     ['icon' => 'local_gas_station', 'label' => '1:59 km/L'],
                 ],
-                'facilities' => '2 Helm Bogo retro, 2 jas hujan, holder HP, ban tubeless tebal.',
+                'facilities' => '2 Helm Bogo retro estetik, 2 jas hujan, holder HP stang, ban tubeless ring 12 tebal.',
+                'condition_notes' => 'Body mulus warna matte elegan tanpa lecet berarti, smart remote aktif dengan alarm anti-maling, mesin terawat prima.',
                 'driver_option' => 'Lepas Kunci',
                 'features' => ['Smart Keyless System', 'Idling Stop System', 'USB Charger Port', 'Bagasi Luas 15.4L'],
+                'requirements' => [
+                    'E-KTP Asli penyewa',
+                    'SIM C Aktif',
+                    'Deposit jaminan Rp 50.000 (Refundable 100%)',
+                    'Denda keterlambatan Rp 15.000 / jam',
+                ],
             ],
             // 3. Honda Vario 160 ABS
             [
                 'id' => 3,
+                'slug' => 'honda-vario-160-abs',
                 'name' => 'Honda Vario 160 ABS',
                 'brand' => 'Honda',
                 'type' => 'motor',
@@ -139,6 +205,12 @@ class VehicleController extends Controller
                 'badge' => 'Sporty Power',
                 'subtitle' => 'Tenaga Responsif 160cc 4-Katup • Rem ABS Depan',
                 'image' => 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 110000,
                 'price_weekly' => 690000,
                 'price_monthly' => 2350000,
@@ -153,13 +225,21 @@ class VehicleController extends Controller
                     ['icon' => 'sports_motorsports', 'label' => '2 Helm SNI'],
                     ['icon' => 'key', 'label' => 'Smart Keyless'],
                 ],
-                'facilities' => 'Sedang proses servis berkala rutin dealer resmi Astra Honda. Siap booking lusa.',
+                'facilities' => '2 Helm SNI, 2 jas hujan, holder HP, gembok cakram tambahan.',
+                'condition_notes' => 'Sedang dalam proses servis berkala 10.000 km dan penggantian oli transmisi resmi di bengkel AHASS. Unit siap jalan kembali lusa.',
                 'driver_option' => 'Lepas Kunci',
                 'features' => ['Rem Cakram ABS', 'Smart Keyless', 'Lampu Full LED', 'Bagasi 18 Liter'],
+                'requirements' => [
+                    'E-KTP Asli penyewa',
+                    'SIM C Aktif',
+                    'Deposit jaminan Rp 50.000 (Refundable 100%)',
+                    'Denda keterlambatan Rp 20.000 / jam',
+                ],
             ],
             // 4. Yamaha NMAX 155 Connected
             [
                 'id' => 4,
+                'slug' => 'yamaha-nmax-155-connected',
                 'name' => 'Yamaha NMAX 155 Connected',
                 'brand' => 'Yamaha',
                 'type' => 'motor',
@@ -174,6 +254,12 @@ class VehicleController extends Controller
                 'badge' => 'Maxi Nyaman',
                 'subtitle' => 'Traction Control System (TCS) • Posisi Kaki Selonjor Luas',
                 'image' => 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 135000,
                 'price_weekly' => 850000,
                 'price_monthly' => 2800000,
@@ -188,13 +274,21 @@ class VehicleController extends Controller
                     ['icon' => 'sports_motorsports', 'label' => '2 Helm SNI'],
                     ['icon' => 'luggage', 'label' => 'Bagasi 24L'],
                 ],
-                'facilities' => 'Charger USB aktif, holder stang kokoh, 2 jas hujan, servis berkala Yamaha Flagship.',
+                'facilities' => 'Charger USB aktif di konsol depan, holder stang aluminium anti-getar, 2 jas hujan, 2 helm full face/half face.',
+                'condition_notes' => 'Suspensi sub-tank empuk nyaman untuk perjalanan jauh, ban lebar tubeless tapak tebal, mesin VVA bertenaga prima.',
                 'driver_option' => 'Lepas Kunci',
                 'features' => ['Y-Connect Bluetooth', 'Sub-tank Suspension', 'Lampu LED & Hazard', 'Power Socket 12V'],
+                'requirements' => [
+                    'E-KTP Asli penyewa',
+                    'SIM C Aktif',
+                    'Deposit jaminan Rp 100.000 (Refundable 100%)',
+                    'Denda keterlambatan Rp 25.000 / jam',
+                ],
             ],
             // 5. Honda PCX 160 ABS
             [
                 'id' => 5,
+                'slug' => 'honda-pcx-160-abs',
                 'name' => 'Honda PCX 160 ABS',
                 'brand' => 'Honda',
                 'type' => 'motor',
@@ -209,6 +303,12 @@ class VehicleController extends Controller
                 'badge' => 'Luxury Maxi',
                 'subtitle' => 'Keyless Smart Key • Bagasi Super Besar 30 Liter',
                 'image' => 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 140000,
                 'price_weekly' => 880000,
                 'price_monthly' => 2950000,
@@ -224,12 +324,20 @@ class VehicleController extends Controller
                     ['icon' => 'luggage', 'label' => 'Bagasi 30L'],
                 ],
                 'facilities' => 'Holder HP anti-getar, 2 jas hujan ponco, gembok cakram, ban tubeless baru.',
+                'condition_notes' => 'Unit baru tahun 2024, tarikan sangat halus tanpa getaran, rem ABS depan presisi tinggi.',
                 'driver_option' => 'Lepas Kunci',
                 'features' => ['Rem ABS Depan', 'HSTC Traction Control', 'USB Port Charger', 'Smart Keyless'],
+                'requirements' => [
+                    'E-KTP Asli penyewa',
+                    'SIM C Aktif',
+                    'Deposit jaminan Rp 100.000 (Refundable 100%)',
+                    'Denda keterlambatan Rp 25.000 / jam',
+                ],
             ],
             // 6. Kawasaki W175 SE (Manual Motor)
             [
                 'id' => 6,
+                'slug' => 'kawasaki-w175-se',
                 'name' => 'Kawasaki W175 SE Classic',
                 'brand' => 'Kawasaki',
                 'type' => 'motor',
@@ -244,6 +352,12 @@ class VehicleController extends Controller
                 'badge' => 'Classic Manual',
                 'subtitle' => 'Sensasi Kopling Manual Klasik • Gaya British Cafe Racer',
                 'image' => 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 150000,
                 'price_weekly' => 950000,
                 'price_monthly' => 3100000,
@@ -258,13 +372,21 @@ class VehicleController extends Controller
                     ['icon' => 'sports_motorsports', 'label' => '2 Helm Bogo Retro'],
                     ['icon' => 'shield', 'label' => 'Tangki 14L'],
                 ],
-                'facilities' => 'Cocok untuk touring akhir pekan & photoshoot. Termasuk 2 helm bogo kulit premium.',
+                'facilities' => 'Cocok untuk touring akhir pekan & photoshoot. Termasuk 2 helm bogo kulit premium, jas hujan, dan sarung tangan touring.',
+                'condition_notes' => 'Mesin 177cc bertorsi padat, kopling enteng tidak pegal di kemacetan, suara knalpot bass adem khas retro.',
                 'driver_option' => 'Lepas Kunci',
                 'features' => ['Kopling Manual Responsif', 'Knalpot Peashooter Bass', 'Velg Jari-Jari Hitam', 'Tangki Tear Drop'],
+                'requirements' => [
+                    'E-KTP Asli penyewa',
+                    'SIM C Aktif',
+                    'Deposit jaminan Rp 150.000 (Refundable 100%)',
+                    'Denda keterlambatan Rp 25.000 / jam',
+                ],
             ],
             // 7. Toyota All New Avanza 1.5 G
             [
                 'id' => 7,
+                'slug' => 'toyota-all-new-avanza',
                 'name' => 'Toyota All New Avanza 1.5 G',
                 'brand' => 'Toyota',
                 'type' => 'mobil',
@@ -279,6 +401,12 @@ class VehicleController extends Controller
                 'badge' => 'Terpopuler',
                 'subtitle' => 'Transmisi CVT Halus • Long Sofa Mode Kabin Nyaman',
                 'image' => 'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 380000,
                 'price_weekly' => 2390000,
                 'price_monthly' => 7800000,
@@ -294,12 +422,21 @@ class VehicleController extends Controller
                     ['icon' => 'luggage', 'label' => '4 Koper Besar'],
                 ],
                 'facilities' => 'Tersedia opsi Lepas Kunci (SIM A) atau All-In Supir ramah & berpengalaman luar kota.',
+                'condition_notes' => 'Kabin bersih wangi non-smoking, AC double blower dingin menggigit, ban tebal 90%, audio bluetooth jernih.',
                 'driver_option' => 'Lepas Kunci & Supir',
                 'features' => ['AC Double Blower', 'Sensor Parkir & Kamera', 'USB Port Tiap Baris', 'Asuransi Garda Oto'],
+                'requirements' => [
+                    'E-KTP Asli penyewa',
+                    'SIM A Aktif',
+                    'Akun media sosial aktif / ID Karyawan',
+                    'Deposit jaminan Rp 200.000 (Refundable 100%)',
+                    'Denda keterlambatan Rp 35.000 / jam',
+                ],
             ],
             // 8. Honda Brio RS Matic
             [
                 'id' => 8,
+                'slug' => 'honda-brio-rs-matic',
                 'name' => 'Honda Brio RS Urbanite Matic',
                 'brand' => 'Honda',
                 'type' => 'mobil',
@@ -314,6 +451,12 @@ class VehicleController extends Controller
                 'badge' => 'City Car Lincah',
                 'subtitle' => 'Lincah Parkir & Sangat Hemat BBM 1:21 km/L',
                 'image' => 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 280000,
                 'price_weekly' => 1750000,
                 'price_monthly' => 6200000,
@@ -328,13 +471,22 @@ class VehicleController extends Controller
                     ['icon' => 'speed', 'label' => '1.2L i-VTEC'],
                     ['icon' => 'touch_app', 'label' => 'Touchscreen'],
                 ],
-                'facilities' => 'Mudah parkir di gang dan area mall sempit, interior sporty dengan audio bluetooth.',
+                'facilities' => 'Mudah parkir di gang dan area mall sempit, interior sporty dengan audio bluetooth & kabel charger Type-C/Lightning.',
+                'condition_notes' => 'Mobil compact paling favorit untuk keliling Jakarta. AC sejuk, suspensi empuk, dan mesin terawat bengkel resmi Honda.',
                 'driver_option' => 'Lepas Kunci',
                 'features' => ['Layar Sentuh 7-Inch', 'Keyless Entry & Push Start', 'Dual SRS Airbags', 'Foglamp LED'],
+                'requirements' => [
+                    'E-KTP Asli penyewa',
+                    'SIM A Aktif',
+                    'Akun media sosial aktif / Kartu Pegawai',
+                    'Deposit jaminan Rp 150.000 (Refundable 100%)',
+                    'Denda keterlambatan Rp 25.000 / jam',
+                ],
             ],
             // 9. Toyota Kijang Innova Reborn Diesel (Manual)
             [
                 'id' => 9,
+                'slug' => 'toyota-innova-reborn-diesel',
                 'name' => 'Toyota Innova Reborn 2.4 G Diesel',
                 'brand' => 'Toyota',
                 'type' => 'mobil',
@@ -349,6 +501,12 @@ class VehicleController extends Controller
                 'badge' => 'Diesel Badak',
                 'subtitle' => 'Mesin 2GD-FTV Bertenaga Luar Biasa untuk Luar Kota & Tanjakan',
                 'image' => 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 500000,
                 'price_weekly' => 3100000,
                 'price_monthly' => 10500000,
@@ -363,13 +521,22 @@ class VehicleController extends Controller
                     ['icon' => 'bolt', 'label' => '2.4L Turbo Diesel'],
                     ['icon' => 'luggage', 'label' => '5 Koper Besar'],
                 ],
-                'facilities' => 'Pilihan utama perjalanan dinas luar kota, tanjakan curam, dan rombongan keluarga besar.',
+                'facilities' => 'Pilihan utama perjalanan dinas luar kota, tanjakan curam, dan rombongan keluarga besar. Termasuk asuransi All-Risk.',
+                'condition_notes' => 'Mesin diesel 2.4L sangat bertenaga dan sehat walafiat, kampas kopling baru, rem tebal, AC triple blower dingin merata hingga baris ke-3.',
                 'driver_option' => 'Lepas Kunci & Supir',
                 'features' => ['Eco & Power Driving Mode', 'AC Triple Blower Dingin', 'Chassis Ladder Frame Kokoh', 'Sensor Parkir'],
+                'requirements' => [
+                    'E-KTP Asli penyewa',
+                    'SIM A Aktif',
+                    'Bukti kerja / Kartu Keluarga',
+                    'Deposit jaminan Rp 250.000 (Refundable 100%)',
+                    'Denda keterlambatan Rp 40.000 / jam',
+                ],
             ],
             // 10. Toyota Innova Zenix Hybrid
             [
                 'id' => 10,
+                'slug' => 'toyota-innova-zenix-hybrid',
                 'name' => 'Toyota Innova Zenix Hybrid Q Modellista',
                 'brand' => 'Toyota',
                 'type' => 'mobil',
@@ -384,6 +551,12 @@ class VehicleController extends Controller
                 'badge' => 'Hybrid Luxury',
                 'subtitle' => 'Captain Seat Ottoman • Sunroof • EV Quiet Mode',
                 'image' => 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 750000,
                 'price_weekly' => 4700000,
                 'price_monthly' => 16500000,
@@ -398,13 +571,22 @@ class VehicleController extends Controller
                     ['icon' => 'settings', 'label' => 'e-CVT Otomatis'],
                     ['icon' => 'wb_sunny', 'label' => 'Panoramic Roof'],
                 ],
-                'facilities' => 'Perjalanan bisnis & VIP sangat prestisius. Konsumsi bensin seirit city car dengan kabin super senyap.',
+                'facilities' => 'Perjalanan bisnis & VIP sangat prestisius. Konsumsi bensin seirit city car dengan kabin super senyap. Tersedia wireless charging.',
+                'condition_notes' => 'Kondisi 100% mulus seperti baru keluar dari showroom, fitur Toyota Safety Sense aktif, baterai hybrid bergaransi resmi.',
                 'driver_option' => 'Lepas Kunci & Supir',
                 'features' => ['Layar 10 Inch Apple CarPlay', 'Wireless Charging', 'Toyota Safety Sense', 'Dashcam Depan-Belakang'],
+                'requirements' => [
+                    'E-KTP Asli penyewa',
+                    'SIM A Aktif',
+                    'ID Perusahaan / Bukti Tiket Penerbangan',
+                    'Deposit jaminan Rp 300.000 (Refundable 100%)',
+                    'Denda keterlambatan Rp 50.000 / jam',
+                ],
             ],
             // 11. Mitsubishi Xpander Ultimate
             [
                 'id' => 11,
+                'slug' => 'mitsubishi-xpander-ultimate',
                 'name' => 'Mitsubishi Xpander Ultimate CVT',
                 'brand' => 'Mitsubishi',
                 'type' => 'mobil',
@@ -419,6 +601,12 @@ class VehicleController extends Controller
                 'badge' => 'Crossover MPV',
                 'subtitle' => 'Suspensi Paling Nyaman Dikelasnya • Ground Clearance 220mm',
                 'image' => 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+                'gallery' => [
+                    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
+                ],
                 'price_daily' => 400000,
                 'price_weekly' => 2500000,
                 'price_monthly' => 8900000,
@@ -433,9 +621,17 @@ class VehicleController extends Controller
                     ['icon' => 'key', 'label' => 'Keyless Start'],
                     ['icon' => 'height', 'label' => 'Ground 220mm'],
                 ],
-                'facilities' => 'Kabin sangat kedap dan kedap getaran, audio jernih, AC digital dingin maksimal.',
+                'facilities' => 'Kabin sangat kedap dan kedap getaran, audio jernih, AC digital dingin maksimal, kabel USB tiap baris.',
+                'condition_notes' => 'Suspensi peredam kejut model Pajero Sport sangat empuk di jalan bergelombang. Siap pakai dalam maupun luar kota.',
                 'driver_option' => 'Lepas Kunci & Supir',
                 'features' => ['Electric Parking Brake (EPB)', 'Brake Auto Hold', 'Suspensi Shock Khusus', 'Kamera Mundur HD'],
+                'requirements' => [
+                    'E-KTP Asli penyewa',
+                    'SIM A Aktif',
+                    'Bukti tempat tinggal / tiket perjalanan',
+                    'Deposit jaminan Rp 200.000 (Refundable 100%)',
+                    'Denda keterlambatan Rp 35.000 / jam',
+                ],
             ],
         ];
     }

@@ -15,6 +15,7 @@ class HomeController extends Controller
         $cars = [
             [
                 'id' => 1,
+                'slug' => 'toyota-all-new-avanza',
                 'name' => 'Toyota All New Avanza',
                 'brand' => 'Toyota',
                 'category' => 'mpv',
@@ -41,6 +42,7 @@ class HomeController extends Controller
             ],
             [
                 'id' => 2,
+                'slug' => 'toyota-innova-zenix-hybrid',
                 'name' => 'Innova Zenix Hybrid',
                 'brand' => 'Toyota',
                 'category' => 'mpv',
@@ -67,6 +69,7 @@ class HomeController extends Controller
             ],
             [
                 'id' => 3,
+                'slug' => 'mitsubishi-xpander-ultimate',
                 'name' => 'Mitsubishi Xpander Ultimate',
                 'brand' => 'Mitsubishi',
                 'category' => 'mpv',
@@ -93,6 +96,7 @@ class HomeController extends Controller
             ],
             [
                 'id' => 4,
+                'slug' => 'honda-brio-rs-matic',
                 'name' => 'Honda Brio RS Matic',
                 'brand' => 'Honda',
                 'category' => 'city',
@@ -123,6 +127,7 @@ class HomeController extends Controller
         $motors = [
             [
                 'id' => 101,
+                'slug' => 'yamaha-nmax-155-connected',
                 'name' => 'Yamaha NMAX 155 Connected',
                 'brand' => 'Yamaha',
                 'category' => 'maxi',
@@ -149,6 +154,7 @@ class HomeController extends Controller
             ],
             [
                 'id' => 102,
+                'slug' => 'honda-pcx-160-abs',
                 'name' => 'Honda PCX 160 ABS',
                 'brand' => 'Honda',
                 'category' => 'maxi',
@@ -175,32 +181,34 @@ class HomeController extends Controller
             ],
             [
                 'id' => 103,
-                'name' => 'Vespa Primavera 150 i-Get',
-                'brand' => 'Vespa',
+                'slug' => 'honda-scoopy-prestige',
+                'name' => 'Honda Scoopy Prestige',
+                'brand' => 'Honda',
                 'category' => 'retro',
                 'category_label' => 'Lifestyle Retro',
                 'type' => 'motor',
-                'year' => '2023',
-                'badge' => 'Lifestyle Retro',
+                'year' => '2024',
+                'badge' => 'Retro Trendy',
                 'is_available' => true,
-                'status_label' => '2 Unit Tersedia',
-                'image' => 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
+                'status_label' => 'Tersedia',
+                'image' => 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
                 'prices' => [
-                    'daily' => 250000,
-                    'weekly' => 1550000,
-                    'monthly' => 5400000,
+                    'daily' => 95000,
+                    'weekly' => 595000,
+                    'monthly' => 1950000,
                 ],
                 'specs' => [
                     ['icon' => 'palette', 'label' => 'Warna Pastel Estetik'],
                     ['icon' => 'sports_motorsports', 'label' => '2 Helm Bogo Kulit'],
-                    ['icon' => 'power', 'label' => 'Mesin i-Get 3V'],
-                    ['icon' => 'two_wheeler', 'label' => '150 cc Injeksi'],
+                    ['icon' => 'key', 'label' => 'Smart Keyless'],
+                    ['icon' => 'two_wheeler', 'label' => '110 cc eSP'],
                 ],
                 'driver_option' => 'Lepas Kunci',
-                'features' => ['Velg Alloy 12 Inch', 'Rem Depan ABS', 'Immobilizer Anti Maling', 'Sangat Cocok Untuk Foto & Konten'],
+                'features' => ['Smart Keyless', 'Idling Stop System', 'USB Charger', 'Bagasi Luas'],
             ],
             [
                 'id' => 104,
+                'slug' => 'honda-vario-160-abs',
                 'name' => 'Honda Vario 160 eSP+',
                 'brand' => 'Honda',
                 'category' => 'matic',
