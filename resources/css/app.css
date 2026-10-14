@@ -1,11 +1,62 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+@source '../**/*.vue';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-inter: 'Inter', ui-sans-serif, sans-serif;
+
+    /* Google Stitch Color Tokens */
+    --color-primary: #0037b0;
+    --color-primary-container: #1d4ed8;
+    --color-primary-fixed: #dce1ff;
+    --color-primary-fixed-dim: #b7c4ff;
+    --color-on-primary: #ffffff;
+    --color-on-primary-container: #cad3ff;
+    --color-on-primary-fixed: #001551;
+
+    --color-secondary: #565e74;
+    --color-secondary-container: #dae2fd;
+    --color-on-secondary: #ffffff;
+    --color-on-secondary-container: #5c647a;
+
+    --color-tertiary: #004f35;
+    --color-tertiary-container: #006948;
+    --color-tertiary-fixed: #85f8c4;
+    --color-tertiary-fixed-dim: #68dba9;
+    --color-on-tertiary: #ffffff;
+    --color-on-tertiary-container: #76eab6;
+
+    --color-surface: #f8f9ff;
+    --color-surface-dim: #cbdbf5;
+    --color-surface-bright: #f8f9ff;
+    --color-surface-container-lowest: #ffffff;
+    --color-surface-container-low: #eff4ff;
+    --color-surface-container: #e5eeff;
+    --color-surface-container-high: #dce9ff;
+    --color-surface-container-highest: #d3e4fe;
+    --color-surface-variant: #d3e4fe;
+
+    --color-on-surface: #0b1c30;
+    --color-on-surface-variant: #434655;
+    --color-outline: #747686;
+    --color-outline-variant: #c4c5d7;
+
+    --color-error: #ba1a1a;
+    --color-error-container: #ffdad6;
 }
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+        font-family: var(--font-sans);
+        background-color: var(--color-surface);
+        color: var(--color-on-surface);
+    }
+}
+
+
