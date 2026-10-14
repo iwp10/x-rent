@@ -137,6 +137,9 @@ const copyBookingCode = () => {
 
 // WhatsApp Inquiry for Current Booking
 const getWhatsAppInquiryUrl = () => {
+    if (page.props.flash && page.props.flash.whatsapp_url) {
+        return page.props.flash.whatsapp_url;
+    }
     if (!currentBooking.value) return 'https://wa.me/6281288889999';
     const b = currentBooking.value;
     const msg = `Halo Admin X-RENT, saya ingin menanyakan status pesanan saya dengan Kode Booking: *${b.code}* atas nama *${b.customer_name}* untuk unit *${b.vehicle.name}*. Mohon informasinya. Terima kasih!`;

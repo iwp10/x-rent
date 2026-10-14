@@ -142,6 +142,9 @@ const handleOnlineBookingSubmit = (e) => {
 
     isSubmitting.value = true;
     router.post('/booking', {
+        vehicle_id: props.vehicle.id,
+        vehicle_slug: props.vehicle.slug,
+        vehicle_name: props.vehicle.name,
         customer_name: formFullName.value,
         customer_phone: formWhatsapp.value,
         customer_category: formCategory.value,
@@ -150,7 +153,6 @@ const handleOnlineBookingSubmit = (e) => {
         duration_count: durationCount.value,
         pickup_option: pickupMethod.value,
         notes: formNotes.value,
-        vehicle_name: props.vehicle.name,
     }, {
         onFinish: () => {
             isSubmitting.value = false;
