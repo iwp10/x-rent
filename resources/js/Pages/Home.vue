@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import VehicleCard from '@/Components/VehicleCard.vue';
 
@@ -62,13 +62,15 @@ const filteredMotors = computed(() => {
 
 const handleSearchVehicles = (e) => {
     e.preventDefault();
-    if (bookingVehicleType.value === 'motor') {
-        const el = document.getElementById('armada-motor');
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-    } else {
-        const el = document.getElementById('armada-mobil');
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-    }
+    const typeParam = bookingVehicleType.value === 'motor' ? 'motor' : 'mobil';
+    router.visit('/katalog', {
+        data: {
+            type: typeParam,
+            lokasi: selectedLocation.value,
+            mulai: startDate.value,
+            selesai: endDate.value,
+        },
+    });
 };
 
 const openDetailModal = (vehicle, price, period) => {

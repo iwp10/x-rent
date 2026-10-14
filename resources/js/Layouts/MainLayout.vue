@@ -36,6 +36,7 @@ const navLinks = [
     { label: 'Syarat & Ketentuan', href: '/#syarat', isRoute: false },
     { label: 'Lokasi Garasi', href: '/#lokasi', isRoute: false },
     { label: 'FAQ', href: '/#faq', isRoute: false },
+    { label: 'Cek Booking', href: '/#cek-booking', isRoute: false },
 ];
 
 const isActive = (href) => {

@@ -17,15 +17,16 @@ class CatalogTest extends TestCase
         $response->assertStatus(200);
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Catalog')
-            ->has('vehicles', 8)
+            ->has('vehicles', 11)
             ->has('categories')
             ->has('stats')
+            ->where('initialType', 'all')
             ->where('initialCategory', 'all')
         );
     }
 
     /**
-     * Test direct car filter route renders catalog with mobil-keluarga category.
+     * Test direct car filter route renders catalog with mobil type.
      */
     public function test_catalog_cars_route(): void
     {
@@ -35,12 +36,12 @@ class CatalogTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Catalog')
             ->has('vehicles')
-            ->where('initialCategory', 'mobil-keluarga')
+            ->where('initialType', 'mobil')
         );
     }
 
     /**
-     * Test direct motor filter route renders catalog with matic-maxi category.
+     * Test direct motor filter route renders catalog with motor type.
      */
     public function test_catalog_motors_route(): void
     {
@@ -50,7 +51,7 @@ class CatalogTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Catalog')
             ->has('vehicles')
-            ->where('initialCategory', 'matic-maxi')
+            ->where('initialType', 'motor')
         );
     }
 }

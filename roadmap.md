@@ -1,27 +1,22 @@
-# Roadmap Pengembangan X-RENT
+# Project Roadmap & Progress Tracker (X-RENT)
 
-## Fase 1: Inisialisasi & Setup Arsitektur (Selesai)
-- [x] **Task 1.1**: Daftarkan middleware `HandleInertiaRequests` di `bootstrap/app.php`.
-- [x] **Task 1.2**: Konfigurasikan `vite.config.js` (`@vitejs/plugin-vue` & `@tailwindcss/vite`), `app.css`, `app.js`, dan root view `app.blade.php`.
-- [x] **Task 1.3**: Buat `MainLayout.vue` untuk brand X-RENT (Navbar SPA, Footer garasi & jam operasional, Floating WhatsApp) dan `Pages/Home.vue`.
+## Fase 1: Fondasi Laravel 13, Vue 3, & Vite
+- [x] **Task 1.1:** Setup `bootstrap/app.php` (Inertia middleware), `vite.config.js` (Vue + Tailwind v4), `resources/css/app.css`, `resources/js/app.js`, dan `resources/views/app.blade.php`.
+- [x] **Task 1.2:** Buat `Layouts/MainLayout.vue` (Navbar responsif X-RENT, Footer alamat & jam operasional, serta tombol Floating WhatsApp) dan route awal ke `Pages/Home.vue`.
 
----
+## Fase 2: Desain Frontend Vue (Dengan Dummy Data di Controller)
+- [x] **Task 2.1:** Buat `Components/VehicleCard.vue` (Menampilkan foto motor, CC, jumlah helm, kondisi umum, badge ketersediaan, dan tombol switch harga Harian/Mingguan/Bulanan).
+- [x] **Task 2.2:** Lengkapi `Pages/Home.vue` (Hero section X-RENT, Katalog Pilihan Motor, Seksi Persyaratan Penyewaan [SIM C, KTP/KTM, Deposit, Denda], Lokasi Google Maps, dan `Components/FaqAccordion.vue`).
+- [x] **Task 2.3:** Buat `Pages/Catalog.vue` beserta `VehicleController@index` (Filter instan tanpa reload berdasarkan Kategori Motor, Transmisi, Ketersediaan, dan Harga).
+- [ ] **Task 2.4:** Buat `Pages/VehicleDetail.vue` beserta `VehicleController@show` (Detail kondisi unit, Kalkulator Harga Reaktif termasuk opsi Antar-Jemput, dan Form Pemesanan Online).
+- [ ] **Task 2.5:** Buat `Pages/TrackBooking.vue` beserta `BookingController@track` (Input kode booking `XR-XXXX` dan visualisasi *Progress Stepper* status penyewaan).
 
-## Fase 2: Katalog Armada & Sistem Tarif Transparan (Selesai)
-- [x] **Task 2.1**: Lengkapi seksi di bawah Hero pada `Pages/Home.vue` (Daftar Unit Unggulan dengan switch harga Harian/Mingguan/Bulanan, Syarat & Ketentuan Sewa, Lokasi Garasi, dan FAQ).
-- [x] **Task 2.2**: Buat halaman `Pages/Catalog.vue` berdasarkan desain `stitch/screen-catalog.html` dan integrasikan ke menu Navbar menggunakan `<Link>` Inertia.
-- [x] **Task 2.3**: Implementasikan filter kategori multi-tier, pencarian unit, toggle ketersediaan ("Hanya Tersedia"), pengurutan tarif (termurah/tertinggi), dan switch harga Harian/Mingguan/Bulanan secara reaktif menggunakan Vue 3 (`ref` & `computed`) dengan data dummy dari `CatalogController` / `HomeController`.
+## Fase 3: Integrasi Database MySQL & Backend Logic
+- [ ] **Task 3.1:** Buat Migration, Model, dan Seeder untuk `categories`, `vehicles`, `bookings`, dan 1 akun `Admin`.
+- [ ] **Task 3.2:** Hubungkan `HomeController` dan `VehicleController` dengan data asli dari database MySQL.
+- [ ] **Task 3.3:** Implementasi `BookingController@store` (Validasi form, simpan ke tabel `bookings`, generate kode `XR-YYYYMMDD-XXXX`, dan *redirect* link konfirmasi ke WhatsApp Admin).
+- [ ] **Task 3.4:** Hubungkan pencarian kode booking di `TrackBooking.vue` dengan tabel `bookings`.
 
----
-
-## Fase 3: Detail Unit Kendaraan & Kalkulator Sewa Cepat
-- [ ] **Task 3.1**: Buat halaman `Pages/VehicleDetail.vue` mengacu pada `stitch/screen-detail.html`.
-- [ ] **Task 3.2**: Galeri 4 sudut foto riil unit, spesifikasi mesin 160cc/kapasitas bagasi/fasilitas touring gratis (2 helm SNI + jas hujan).
-- [ ] **Task 3.3**: Sticky booking calculator card dengan penyesuaian durasi (stepper hari/minggu), opsi ambil garasi vs antar-jemput bandara/hotel, dan ringkasan biaya pas tanpa biaya tersembunyi.
-
----
-
-## Fase 4: Pelacakan Pesanan & Verifikasi Real-Time
-- [ ] **Task 4.1**: Buat halaman `Pages/TrackBooking.vue` mengacu pada `stitch/screen-track.html`.
-- [ ] **Task 4.2**: 4-Step visual progress stepper (Menunggu Konfirmasi -> Siap Diambil di Garasi -> Masa Sewa Berjalan -> Selesai & Pengembalian).
-- [ ] **Task 4.3**: Formulir pencarian kode reservasi (XR-...) + WhatsApp pemesan, status verifikasi berkas (KTP & SIM), dan download voucher tanda terima.
+## Fase 4: Panel Admin Pengelola
+- [ ] **Task 4.1:** Buat autentikasi Login Admin sederhana & `Layouts/AdminLayout.vue`.
+- [ ] **Task 4.2:** Buat halaman Dashboard Admin untuk mengelola unit motor (ubah status Tersedia/Disewa/Servis) dan mengubah status pesanan pelanggan (`Menunggu Konfirmasi` -> `Diterima` -> `Sedang Disewa` -> `Selesai`).

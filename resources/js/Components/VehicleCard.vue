@@ -91,28 +91,38 @@ const getWhatsAppUrl = () => {
             <div
                 class="absolute right-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md shadow-xs text-xs font-semibold"
                 :class="[
-                    vehicle.is_available
+                    vehicle.status === 'available' || (vehicle.status === undefined && vehicle.is_available)
                         ? 'bg-surface-container-lowest/95 text-tertiary border border-tertiary/20'
+                        : vehicle.status === 'maintenance'
+                        ? 'bg-surface-container-lowest/95 text-rose-700 border border-rose-200'
                         : 'bg-surface-container-highest/95 text-on-surface-variant border border-outline-variant'
                 ]"
             >
                 <span
                     class="h-2 w-2 rounded-full"
                     :class="[
-                        vehicle.is_available
+                        vehicle.status === 'available' || (vehicle.status === undefined && vehicle.is_available)
                             ? 'bg-tertiary animate-pulse'
+                            : vehicle.status === 'maintenance'
+                            ? 'bg-rose-500'
                             : 'bg-amber-500'
                     ]"
                 ></span>
                 <span class="font-spec-data text-[11px]">
-                    {{ vehicle.status_label || (vehicle.is_available ? 'Tersedia Hari Ini' : 'Sedang Disewa') }}
+                    {{ vehicle.status_label || (vehicle.is_available ? 'Tersedia' : 'Sedang Disewa') }}
                 </span>
             </div>
 
-            <!-- Driver Option Overlay Pill -->
-            <div class="absolute bottom-3 left-3">
+            <!-- Driver Option & Transmission Overlay Pill -->
+            <div class="absolute bottom-3 left-3 flex items-center gap-1.5">
                 <span class="rounded-lg bg-surface-container-lowest/90 px-2.5 py-1 font-spec-data text-[11px] font-semibold text-on-surface backdrop-blur-md shadow-xs">
                     {{ vehicle.driver_option || 'Lepas Kunci' }}
+                </span>
+                <span
+                    v-if="vehicle.transmission_label"
+                    class="rounded-lg bg-surface-container-lowest/90 px-2 py-1 font-spec-data text-[10px] font-bold text-primary backdrop-blur-md shadow-xs uppercase"
+                >
+                    {{ vehicle.transmission_label }}
                 </span>
             </div>
         </div>

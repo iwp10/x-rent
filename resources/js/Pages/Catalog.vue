@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import VehicleCard from '@/Components/VehicleCard.vue';
@@ -9,6 +9,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    initialType: {
+        type: String,
+        default: 'all', // 'all' | 'motor' | 'mobil'
+    },
     initialCategory: {
         type: String,
         default: 'all',
@@ -16,7 +20,7 @@ const props = defineProps({
     stats: {
         type: Object,
         default: () => ({
-            total_units: '48+ Unit',
+            total_units: '10+ Unit',
             service_guarantee: '100% Prima',
             insurance: 'All-Risk',
         }),
@@ -24,10 +28,10 @@ const props = defineProps({
     categories: {
         type: Array,
         default: () => [
-            { id: 'all', label: 'Semua Unit' },
+            { id: 'all', label: 'Semua Kategori' },
             { id: 'matic-ekonomis', label: 'Matic Ekonomis (110-125cc)' },
             { id: 'matic-maxi', label: 'Maxi Scooter (150-160cc)' },
-            { id: 'mobil-keluarga', label: 'Mobil & MPV Keluarga' },
+            { id: 'mobil-keluarga', label: 'MPV & Mobil Keluarga' },
             { id: 'hybrid-listrik', label: 'Hybrid & Elektrik' },
         ],
     },
@@ -35,9 +39,11 @@ const props = defineProps({
 
 // Reactive States for Catalog Filtering & Controls (Vue 3 ref)
 const searchQuery = ref('');
-const selectedCategory = ref(props.initialCategory || 'all');
+const vehicleTypeFilter = ref(props.initialType || 'all'); // 'all' | 'motor' | 'mobil'
+const categoryFilter = ref(props.initialCategory || 'all');
+const transmissionFilter = ref('all'); // 'all' | 'matic' | 'manual'
 const onlyAvailable = ref(false);
-const sortBy = ref('popular'); // 'popular' | 'price-low' | 'price-high' | 'year'
+const sortBy = ref('popular'); // 'popular' | 'price-asc' | 'price-desc' | 'year'
 const pricePeriod = ref('daily'); // 'daily' | 'weekly' | 'monthly'
 
 // Modal Detail State
@@ -49,12 +55,36 @@ const selectedDetailPeriod = ref('daily');
 const filteredVehicles = computed(() => {
     let list = [...props.vehicles];
 
-    // 1. Filter by category
-    if (selectedCategory.value !== 'all') {
-        list = list.filter((v) => v.category === selectedCategory.value);
+    // 1. Filter by Vehicle Type (Motor vs Mobil vs Semua)
+    if (vehicleTypeFilter.value !== 'all') {
+        list = list.filter((v) => v.type === vehicleTypeFilter.value);
     }
 
-    // 2. Filter by search query (name, brand, category_label, subtitle, type)
+    // 2. Filter by Sub-Category
+    if (categoryFilter.value !== 'all') {
+        list = list.filter((v) => v.category === categoryFilter.value);
+    }
+
+    // 3. Filter by Transmission (Matic vs Manual)
+    if (transmissionFilter.value !== 'all') {
+        list = list.filter((v) => {
+            const trans = v.transmission?.toLowerCase() || '';
+            if (transmissionFilter.value === 'matic') {
+                return trans.includes('matic') || trans.includes('cvt') || trans.includes('otomatis');
+            }
+            if (transmissionFilter.value === 'manual') {
+                return trans.includes('manual');
+            }
+            return true;
+        });
+    }
+
+    // 4. Filter by availability (status === 'available')
+    if (onlyAvailable.value) {
+        list = list.filter((v) => v.status === 'available' || (v.status === undefined && v.is_available === true));
+    }
+
+    // 5. Filter by search query (name, brand, category_label, subtitle, features)
     if (searchQuery.value.trim() !== '') {
         const query = searchQuery.value.toLowerCase().trim();
         list = list.filter((v) => {
@@ -62,33 +92,27 @@ const filteredVehicles = computed(() => {
             const brandMatch = v.brand?.toLowerCase().includes(query);
             const catMatch = v.category_label?.toLowerCase().includes(query);
             const subMatch = v.subtitle?.toLowerCase().includes(query);
-            const typeMatch = v.type?.toLowerCase().includes(query);
-            return nameMatch || brandMatch || catMatch || subMatch || typeMatch;
+            const transMatch = v.transmission_label?.toLowerCase().includes(query);
+            return nameMatch || brandMatch || catMatch || subMatch || transMatch;
         });
     }
 
-    // 3. Filter by availability
-    if (onlyAvailable.value) {
-        list = list.filter((v) => v.is_available === true);
-    }
-
-    // 4. Sort logic
-    if (sortBy.value === 'price-low') {
+    // 6. Sort logic (Reactive Price Period Sort)
+    if (sortBy.value === 'price-asc') {
         list.sort((a, b) => {
-            const priceA = a.prices?.[pricePeriod.value] || a.prices?.daily || 0;
-            const priceB = b.prices?.[pricePeriod.value] || b.prices?.daily || 0;
+            const priceA = a.prices?.[pricePeriod.value] || a.price_daily || 0;
+            const priceB = b.prices?.[pricePeriod.value] || b.price_daily || 0;
             return priceA - priceB;
         });
-    } else if (sortBy.value === 'price-high') {
+    } else if (sortBy.value === 'price-desc') {
         list.sort((a, b) => {
-            const priceA = a.prices?.[pricePeriod.value] || a.prices?.daily || 0;
-            const priceB = b.prices?.[pricePeriod.value] || b.prices?.daily || 0;
+            const priceA = a.prices?.[pricePeriod.value] || a.price_daily || 0;
+            const priceB = b.prices?.[pricePeriod.value] || b.price_daily || 0;
             return priceB - priceA;
         });
     } else if (sortBy.value === 'year') {
         list.sort((a, b) => parseInt(b.year || 0) - parseInt(a.year || 0));
     }
-    // Default 'popular' maintains the curated priority order from the controller
 
     return list;
 });
@@ -97,23 +121,27 @@ const filteredVehicles = computed(() => {
 const isFilterActive = computed(() => {
     return (
         searchQuery.value.trim() !== '' ||
-        selectedCategory.value !== 'all' ||
+        vehicleTypeFilter.value !== 'all' ||
+        categoryFilter.value !== 'all' ||
+        transmissionFilter.value !== 'all' ||
         onlyAvailable.value === true ||
         sortBy.value !== 'popular' ||
         pricePeriod.value !== 'daily'
     );
 });
 
-// Category counts helper
-const getCategoryCount = (catId) => {
-    if (catId === 'all') return props.vehicles.length;
-    return props.vehicles.filter((v) => v.category === catId).length;
+// Helper count functions
+const getVehicleTypeCount = (type) => {
+    if (type === 'all') return props.vehicles.length;
+    return props.vehicles.filter((v) => v.type === type).length;
 };
 
 // Reset all filters to default
 const resetFilters = () => {
     searchQuery.value = '';
-    selectedCategory.value = 'all';
+    vehicleTypeFilter.value = 'all';
+    categoryFilter.value = 'all';
+    transmissionFilter.value = 'all';
     onlyAvailable.value = false;
     sortBy.value = 'popular';
     pricePeriod.value = 'daily';
@@ -154,17 +182,17 @@ const getWhatsAppModalUrl = () => {
     const periodName = selectedDetailPeriod.value === 'weekly' ? 'Mingguan' : selectedDetailPeriod.value === 'monthly' ? 'Bulanan' : 'Harian';
     const priceFormatted = formatRupiah(selectedDetailPrice.value);
     const suffix = getPeriodSuffix(selectedDetailPeriod.value);
-    const availabilityNote = selectedDetailVehicle.value.is_available ? 'Tersedia' : 'Cek Jadwal Berikutnya';
+    const availabilityNote = selectedDetailVehicle.value.status === 'available' || selectedDetailVehicle.value.is_available ? 'Tersedia' : 'Cek Jadwal Berikutnya';
 
     const text = encodeURIComponent(
-        `Halo Admin X-RENT, saya ingin sewa unit:\n*${selectedDetailVehicle.value.name}*\nPaket: *${periodName}* (${priceFormatted}${suffix})\nStatus: *${availabilityNote}*\nOpsi: *${selectedDetailVehicle.value.driver_option || 'Lepas Kunci'}*\nMohon informasi verifikasi berkas dan ketersediaan tanggalnya.`
+        `Halo Admin X-RENT, saya ingin sewa unit:\n*${selectedDetailVehicle.value.name}*\nPaket: *${periodName}* (${priceFormatted}${suffix})\nTransmisi: *${selectedDetailVehicle.value.transmission_label || 'Matic'}*\nStatus: *${availabilityNote}*\nOpsi: *${selectedDetailVehicle.value.driver_option || 'Lepas Kunci'}*\nMohon info ketersediaan dan verifikasi berkas.`
     );
     return `https://wa.me/6281288889999?text=${text}`;
 };
 </script>
 
 <template>
-    <Head title="Katalog Armada & Tarif Sewa Lengkap - X-RENT" />
+    <Head title="Katalog Armada & Tarif Sewa - X-RENT Jakarta" />
 
     <MainLayout>
         <div class="flex flex-col w-full bg-surface">
@@ -186,16 +214,16 @@ const getWhatsAppModalUrl = () => {
                             <div class="inline-flex items-center gap-2 rounded-full bg-surface-container-lowest px-3.5 py-1.5 shadow-xs border border-surface-container-highest/60 mb-3">
                                 <span class="h-2 w-2 rounded-full bg-primary animate-pulse"></span>
                                 <span class="font-label-badge text-[11px] uppercase tracking-wider text-primary font-bold">
-                                    Armada Resmi X-RENT 2026
+                                    Katalog Resmi X-RENT 2026
                                 </span>
                             </div>
 
                             <h1 class="font-display-hero text-2xl sm:text-3xl lg:text-4xl font-extrabold text-on-surface tracking-tight leading-tight">
-                                Katalog Armada & <span class="text-primary">Tarif Sewa Transparan</span>
+                                Katalog Armada Motor & Mobil <span class="text-primary">Tarif Transparan</span>
                             </h1>
 
                             <p class="mt-2.5 font-body-md text-sm sm:text-base text-on-surface-variant leading-relaxed">
-                                Temukan motor matic lincah dan mobil keluarga terawat untuk segala kebutuhan mobilitas Anda. Bebas biaya tersembunyi, servis berkala dealer resmi, dan perlindungan asuransi All-Risk komprehensif.
+                                Temukan motor matic lincah perkotaan dan mobil keluarga nyaman terawat. Seluruh unit siap pakai dengan jaminan inspeksi mekanis 40 titik, asuransi All-Risk, dan verifikasi cepat 15 menit via WhatsApp.
                             </p>
                         </div>
 
@@ -204,7 +232,7 @@ const getWhatsAppModalUrl = () => {
                             <div class="flex items-center gap-2.5 rounded-2xl bg-surface-container-lowest px-4 py-3 shadow-xs border border-surface-container-highest/70">
                                 <span class="material-symbols-outlined text-primary text-[22px]">directions_car</span>
                                 <div>
-                                    <span class="block font-headline-sm text-sm font-bold text-on-surface leading-none">48+ Unit</span>
+                                    <span class="block font-headline-sm text-sm font-bold text-on-surface leading-none">{{ vehicles.length }}+ Unit</span>
                                     <span class="font-spec-data text-[11px] text-on-surface-variant">Motor & Mobil Ready</span>
                                 </div>
                             </div>
@@ -230,7 +258,7 @@ const getWhatsAppModalUrl = () => {
             <!-- INTERACTIVE CONTROL & FILTER TOOLBAR (Sticky Filter Bar) -->
             <section class="sticky top-20 z-40 w-full bg-surface-container-lowest/95 backdrop-blur-md border-b border-surface-container-highest/80 shadow-xs py-4 transition-all">
                 <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
-                    <!-- Top Row: Search Input + Category Filter Pills -->
+                    <!-- Row 1: Search Input + Jenis Kendaraan Pills (Semua, Motor, Mobil) -->
                     <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
                         <!-- Search Bar -->
                         <div class="relative w-full lg:w-96">
@@ -240,7 +268,7 @@ const getWhatsAppModalUrl = () => {
                             <input
                                 v-model="searchQuery"
                                 type="text"
-                                placeholder="Cari nama unit, merk (Honda, Toyota, Vespa)..."
+                                placeholder="Cari nama kendaraan (Beat, NMAX, Avanza, Brio)..."
                                 class="w-full rounded-xl bg-surface-container-low pl-10 pr-10 py-2.5 text-xs sm:text-sm text-on-surface placeholder:text-on-surface-variant/70 border border-surface-container-highest focus:border-primary focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                             />
                             <button
@@ -254,86 +282,120 @@ const getWhatsAppModalUrl = () => {
                             </button>
                         </div>
 
-                        <!-- Category Pill Filters (Task 2.3 Reactive Ref) -->
+                        <!-- Type Filters: Semua / Motor / Mobil (Task 2.3 requirement) -->
                         <div class="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
                             <button
-                                v-for="cat in categories"
-                                :key="cat.id"
                                 type="button"
-                                @click="selectedCategory = cat.id"
+                                @click="vehicleTypeFilter = 'all'"
                                 class="shrink-0 rounded-xl px-4 py-2 font-title-md text-xs font-semibold transition-all flex items-center gap-1.5"
                                 :class="[
-                                    selectedCategory === cat.id
-                                        ? 'bg-primary text-on-primary shadow-xs scale-100 font-bold'
+                                    vehicleTypeFilter === 'all'
+                                        ? 'bg-primary text-on-primary shadow-xs font-bold'
                                         : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
                                 ]"
                             >
-                                <span>{{ cat.label.split('(')[0].trim() }}</span>
-                                <span
-                                    class="rounded-full px-1.5 py-0.2 text-[10px]"
-                                    :class="[
-                                        selectedCategory === cat.id
-                                            ? 'bg-on-primary/20 text-on-primary font-bold'
-                                            : 'bg-surface-container text-on-surface-variant'
-                                    ]"
-                                >
-                                    {{ getCategoryCount(cat.id) }}
+                                <span class="material-symbols-outlined text-[16px]">apps</span>
+                                <span>Semua Unit</span>
+                                <span class="rounded-full px-1.5 py-0.2 text-[10px]" :class="vehicleTypeFilter === 'all' ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container'">
+                                    {{ getVehicleTypeCount('all') }}
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                @click="vehicleTypeFilter = 'motor'"
+                                class="shrink-0 rounded-xl px-4 py-2 font-title-md text-xs font-semibold transition-all flex items-center gap-1.5"
+                                :class="[
+                                    vehicleTypeFilter === 'motor'
+                                        ? 'bg-primary text-on-primary shadow-xs font-bold'
+                                        : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+                                ]"
+                            >
+                                <span class="material-symbols-outlined text-[16px]">two_wheeler</span>
+                                <span>Armada Motor</span>
+                                <span class="rounded-full px-1.5 py-0.2 text-[10px]" :class="vehicleTypeFilter === 'motor' ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container'">
+                                    {{ getVehicleTypeCount('motor') }}
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                @click="vehicleTypeFilter = 'mobil'"
+                                class="shrink-0 rounded-xl px-4 py-2 font-title-md text-xs font-semibold transition-all flex items-center gap-1.5"
+                                :class="[
+                                    vehicleTypeFilter === 'mobil'
+                                        ? 'bg-primary text-on-primary shadow-xs font-bold'
+                                        : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+                                ]"
+                            >
+                                <span class="material-symbols-outlined text-[16px]">directions_car</span>
+                                <span>Armada Mobil</span>
+                                <span class="rounded-full px-1.5 py-0.2 text-[10px]" :class="vehicleTypeFilter === 'mobil' ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container'">
+                                    {{ getVehicleTypeCount('mobil') }}
                                 </span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Bottom Row: Price Period Switcher + Availability Toggle + Sorting + Reset -->
+                    <!-- Row 2: Sub-category pills + Transmisi + Availability Toggle + Sorting + Pricing Period -->
                     <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-surface-container-high/60 text-xs">
-                        <div class="flex flex-wrap items-center gap-4">
-                            <!-- Global Pricing Period Switcher (Harian/Mingguan/Bulanan) -->
-                            <div class="flex items-center gap-2">
-                                <span class="font-spec-data text-on-surface-variant font-medium hidden sm:inline">
-                                    Tampilkan Tarif:
-                                </span>
-                                <div class="inline-flex rounded-xl bg-surface-container p-1 font-spec-data font-semibold">
-                                    <button
-                                        type="button"
-                                        @click="pricePeriod = 'daily'"
-                                        class="rounded-lg px-3 py-1.5 transition-all"
-                                        :class="[
-                                            pricePeriod === 'daily'
-                                                ? 'bg-surface-container-lowest text-primary font-bold shadow-xs'
-                                                : 'text-on-surface-variant hover:text-on-surface'
-                                        ]"
-                                    >
-                                        Harian
-                                    </button>
-                                    <button
-                                        type="button"
-                                        @click="pricePeriod = 'weekly'"
-                                        class="rounded-lg px-3 py-1.5 transition-all flex items-center gap-1"
-                                        :class="[
-                                            pricePeriod === 'weekly'
-                                                ? 'bg-surface-container-lowest text-primary font-bold shadow-xs'
-                                                : 'text-on-surface-variant hover:text-on-surface'
-                                        ]"
-                                    >
-                                        <span>Mingguan</span>
-                                        <span class="rounded bg-tertiary-fixed text-tertiary text-[9px] font-bold px-1">Hemat 10%</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        @click="pricePeriod = 'monthly'"
-                                        class="rounded-lg px-3 py-1.5 transition-all flex items-center gap-1"
-                                        :class="[
-                                            pricePeriod === 'monthly'
-                                                ? 'bg-surface-container-lowest text-primary font-bold shadow-xs'
-                                                : 'text-on-surface-variant hover:text-on-surface'
-                                        ]"
-                                    >
-                                        <span>Bulanan</span>
-                                        <span class="rounded bg-tertiary-fixed text-tertiary text-[9px] font-bold px-1">Hemat 25%</span>
-                                    </button>
-                                </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <!-- Transmisi Filter (Semua / Matic / Manual) -->
+                            <div class="flex items-center gap-1.5 bg-surface-container-low px-2 py-1 rounded-xl border border-surface-container-highest/80">
+                                <span class="font-spec-data text-on-surface-variant font-medium">Transmisi:</span>
+                                <select
+                                    v-model="transmissionFilter"
+                                    class="bg-transparent font-spec-data text-xs text-on-surface font-semibold focus:outline-none cursor-pointer"
+                                >
+                                    <option value="all">Semua Transmisi</option>
+                                    <option value="matic">Matic / CVT</option>
+                                    <option value="manual">Manual</option>
+                                </select>
                             </div>
 
-                            <!-- Availability Filter Toggle (Hanya Tersedia) -->
+                            <!-- Global Pricing Period Switcher (Harian / Mingguan / Bulanan) -->
+                            <div class="flex items-center gap-1 bg-surface-container p-1 rounded-xl font-spec-data font-semibold">
+                                <button
+                                    type="button"
+                                    @click="pricePeriod = 'daily'"
+                                    class="rounded-lg px-2.5 py-1 transition-all"
+                                    :class="[
+                                        pricePeriod === 'daily'
+                                            ? 'bg-surface-container-lowest text-primary font-bold shadow-xs'
+                                            : 'text-on-surface-variant hover:text-on-surface'
+                                    ]"
+                                >
+                                    Harian
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="pricePeriod = 'weekly'"
+                                    class="rounded-lg px-2.5 py-1 transition-all flex items-center gap-1"
+                                    :class="[
+                                        pricePeriod === 'weekly'
+                                            ? 'bg-surface-container-lowest text-primary font-bold shadow-xs'
+                                            : 'text-on-surface-variant hover:text-on-surface'
+                                    ]"
+                                >
+                                    <span>Mingguan</span>
+                                    <span class="rounded bg-tertiary-fixed text-tertiary text-[9px] font-bold px-1">Hemat 10%</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="pricePeriod = 'monthly'"
+                                    class="rounded-lg px-2.5 py-1 transition-all flex items-center gap-1"
+                                    :class="[
+                                        pricePeriod === 'monthly'
+                                            ? 'bg-surface-container-lowest text-primary font-bold shadow-xs'
+                                            : 'text-on-surface-variant hover:text-on-surface'
+                                    ]"
+                                >
+                                    <span>Bulanan</span>
+                                    <span class="rounded bg-tertiary-fixed text-tertiary text-[9px] font-bold px-1">Hemat 25%</span>
+                                </button>
+                            </div>
+
+                            <!-- Availability Toggle (Hanya Tersedia) -->
                             <label class="flex items-center gap-2 cursor-pointer select-none py-1 px-2.5 rounded-lg hover:bg-surface-container-low transition">
                                 <input
                                     v-model="onlyAvailable"
@@ -341,7 +403,7 @@ const getWhatsAppModalUrl = () => {
                                     class="w-4 h-4 rounded text-primary focus:ring-primary border-outline-variant cursor-pointer"
                                 />
                                 <span class="font-spec-data text-on-surface font-semibold flex items-center gap-1">
-                                    <span class="w-2 h-2 rounded-full bg-tertiary"></span>
+                                    <span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
                                     Hanya Unit Tersedia
                                 </span>
                             </label>
@@ -349,7 +411,7 @@ const getWhatsAppModalUrl = () => {
 
                         <!-- Sort & Reset Filters -->
                         <div class="flex items-center gap-3 ml-auto">
-                            <!-- Sort Selector -->
+                            <!-- Sort Selector (Termurah ke Tertinggi & sebaliknya) -->
                             <div class="flex items-center gap-1.5">
                                 <span class="font-spec-data text-on-surface-variant font-medium hidden md:inline">
                                     Urutkan:
@@ -359,8 +421,8 @@ const getWhatsAppModalUrl = () => {
                                     class="rounded-xl bg-surface-container-low border border-surface-container-highest px-3 py-1.5 font-spec-data text-xs text-on-surface font-semibold focus:border-primary focus:outline-none transition cursor-pointer"
                                 >
                                     <option value="popular">Paling Populer</option>
-                                    <option value="price-low">Tarif: Termurah</option>
-                                    <option value="price-high">Tarif: Tertinggi</option>
+                                    <option value="price-asc">Tarif: Termurah ke Tertinggi</option>
+                                    <option value="price-desc">Tarif: Tertinggi ke Termurah</option>
                                     <option value="year">Tahun: Terbaru</option>
                                 </select>
                             </div>
@@ -393,16 +455,22 @@ const getWhatsAppModalUrl = () => {
                                 dari {{ vehicles.length }} unit armada
                             </span>
                             <span
-                                v-if="selectedCategory !== 'all'"
-                                class="rounded-full bg-primary-fixed text-primary px-2.5 py-0.5 text-[11px] font-bold"
+                                v-if="vehicleTypeFilter !== 'all'"
+                                class="rounded-full bg-primary-fixed text-primary px-2.5 py-0.5 text-[11px] font-bold uppercase"
                             >
-                                Kategori Aktif
+                                {{ vehicleTypeFilter }}
+                            </span>
+                            <span
+                                v-if="transmissionFilter !== 'all'"
+                                class="rounded-full bg-surface-container-high text-on-surface-variant px-2.5 py-0.5 text-[11px] font-semibold uppercase"
+                            >
+                                {{ transmissionFilter }}
                             </span>
                         </div>
 
                         <!-- Pricing Period Indicator -->
                         <span class="font-spec-data text-xs text-on-surface-variant">
-                            Tarif Aktif: <strong class="text-on-surface capitalize">{{ pricePeriod === 'weekly' ? 'Mingguan (Diskon 10%)' : pricePeriod === 'monthly' ? 'Bulanan (Diskon 25%)' : 'Harian (Lepas Kunci / Supir)' }}</strong>
+                            Tarif Aktif: <strong class="text-on-surface capitalize">{{ pricePeriod === 'weekly' ? 'Mingguan (Diskon 10%)' : pricePeriod === 'monthly' ? 'Bulanan (Diskon 25%)' : 'Harian' }}</strong>
                         </span>
                     </div>
 
@@ -429,10 +497,10 @@ const getWhatsAppModalUrl = () => {
                             <span class="material-symbols-outlined text-[36px]">search_off</span>
                         </div>
                         <h3 class="font-headline-sm text-lg font-bold text-on-surface">
-                            Tidak Ada Unit yang Cocok
+                            Tidak Ada Kendaraan yang Cocok
                         </h3>
                         <p class="font-body-md text-xs sm:text-sm text-on-surface-variant mt-2 leading-relaxed">
-                            Kami tidak menemukan kendaraan yang sesuai dengan kriteria filter atau pencarian "{{ searchQuery }}". Cobalah ganti kata kunci atau hilangkan centang "Hanya Unit Tersedia".
+                            Kami tidak menemukan unit yang sesuai dengan kombinasi filter Anda{{ searchQuery ? ` untuk "${searchQuery}"` : '' }}. Cobalah ganti transmisi atau nonaktifkan centang "Hanya Unit Tersedia".
                         </p>
                         <div class="mt-6 flex justify-center gap-3">
                             <button
@@ -441,7 +509,7 @@ const getWhatsAppModalUrl = () => {
                                 class="inline-flex items-center gap-2 rounded-xl bg-primary text-on-primary px-5 py-2.5 font-title-md text-xs font-semibold shadow-xs hover:bg-primary-container transition"
                             >
                                 <span class="material-symbols-outlined text-[16px]">refresh</span>
-                                <span>Tampilkan Semua Unit</span>
+                                <span>Reset Semua Filter</span>
                             </button>
                         </div>
                     </div>
@@ -457,7 +525,7 @@ const getWhatsAppModalUrl = () => {
                                     Butuh Sewa Mobil/Motor Kontrak Bulanan atau Armada Wisata?
                                 </h3>
                                 <p class="font-body-md text-sm text-on-primary-container leading-relaxed">
-                                    Dapatkan penawaran tarif korporat khusus dengan fasilitas penggantian unit cepat jika kendala teknis, faktur pajak resmi, dan pilihan armada seragam.
+                                    Dapatkan penawaran tarif korporat khusus dengan fasilitas penggantian unit cepat jika ada kendala teknis, faktur pajak resmi, dan pilihan armada seragam.
                                 </p>
                             </div>
 
@@ -510,8 +578,10 @@ const getWhatsAppModalUrl = () => {
                     <span
                         class="absolute top-3 right-12 rounded-full px-2.5 py-1 text-[11px] font-bold backdrop-blur-md shadow-xs"
                         :class="[
-                            selectedDetailVehicle.is_available
+                            selectedDetailVehicle.status === 'available' || selectedDetailVehicle.is_available
                                 ? 'bg-surface-container-lowest/95 text-tertiary border border-tertiary/20'
+                                : selectedDetailVehicle.status === 'maintenance'
+                                ? 'bg-surface-container-lowest/95 text-rose-700 border border-rose-200'
                                 : 'bg-surface-container-highest/95 text-on-surface-variant'
                         ]"
                     >
@@ -526,7 +596,7 @@ const getWhatsAppModalUrl = () => {
                             {{ selectedDetailVehicle.name }}
                         </h3>
                         <p class="font-body-sm text-xs text-on-surface-variant mt-0.5">
-                            Tahun {{ selectedDetailVehicle.year }} • Opsi: {{ selectedDetailVehicle.driver_option }}
+                            Tahun {{ selectedDetailVehicle.year }} • Transmisi: {{ selectedDetailVehicle.transmission_label || 'Matic' }} • Opsi: {{ selectedDetailVehicle.driver_option }}
                         </p>
                     </div>
 

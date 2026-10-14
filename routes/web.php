@@ -1,14 +1,10 @@
 <?php
 
-use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\VehicleController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/katalog', [CatalogController::class, 'index'])->name('catalog');
-Route::get('/armada-mobil', [CatalogController::class, 'cars'])->name('catalog.cars');
-Route::get('/armada-motor', [CatalogController::class, 'motors'])->name('catalog.motors');
-
-
-
-
+Route::get('/katalog', [VehicleController::class, 'index'])->name('vehicles.index');
+Route::get('/armada-mobil', [VehicleController::class, 'index'])->name('vehicles.cars');
+Route::get('/armada-motor', [VehicleController::class, 'index'])->name('vehicles.motors');
